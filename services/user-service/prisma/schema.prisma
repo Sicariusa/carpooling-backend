@@ -13,10 +13,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
-  id          String @id @default(uuid())
-  name        String
-  email       String @unique
-  universityID String
-  verified    Boolean @default(false)
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  universityId Int    @unique // ✅ Rename from `university_id`
+  password     String
+  role         Role     @default(PASSENGER)
+  phoneNumber  Int?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum Role {
+  PASSENGER
+  DRIVER
+  ADMIN
 }
