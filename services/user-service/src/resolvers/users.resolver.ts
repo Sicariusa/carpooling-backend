@@ -3,7 +3,7 @@ import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
 
 import { User } from 'src/schema/user';
-import { UsersService } from 'src/sercvices/users.service';
+import { UsersService } from 'src/services/users.service';
 
 
 @Resolver(() => User)
@@ -24,7 +24,7 @@ export class UsersResolver {
 
   // ✅ Register a new user
   @Mutation(() => User, { name: 'registerUser' })
-  async create(@Args('input') input: CreateUserInput) {
+  async createUser(@Args('input') input: CreateUserInput) {
     return this.usersService.create(input);
   }
 

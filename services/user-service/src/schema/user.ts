@@ -1,5 +1,11 @@
-import { ObjectType, Field, ID, Int } from '@nestjs/graphql';
+import { ObjectType, Field, ID, Int, registerEnumType } from '@nestjs/graphql';
 import { Role } from '@prisma/client';
+
+// Register the Role enum with GraphQL
+registerEnumType(Role, {
+  name: 'Role',
+  description: 'User roles',
+});
 
 @ObjectType()
 export class User {
@@ -9,14 +15,16 @@ export class User {
   @Field()
   email: string;
 
-  @Field(() => Int, { nullable: true }) // ✅ Ensure university_id is a number
-  university_id: number;
-
+  @Field(() => Int)
+  universityId: number;
 
   @Field()
+  password?: string;
+
+  @Field(() => String) // Note: Role enum is represented as String in GraphQL
   role: Role;
 
-  @Field({ nullable: true })
+  @Field(() => Int, { nullable: true })
   phoneNumber?: number;
 
   @Field()
@@ -25,4 +33,3 @@ export class User {
   @Field()
   updatedAt: Date;
 }
-

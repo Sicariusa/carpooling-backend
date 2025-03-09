@@ -19,7 +19,7 @@ model User {
   universityId Int    @unique // ✅ Rename from `university_id`
   password     String
   role         Role     @default(PASSENGER)
-  phoneNumber  Int?  @unique
+  phoneNumber  String?  @unique
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
