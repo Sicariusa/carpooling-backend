@@ -3,6 +3,7 @@ import { User } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
+import * as bcrypt from 'bcrypt';
 
 
 @Injectable()
@@ -11,7 +12,15 @@ export class UsersService {
 
   // ✅ Create a new user
   async create(input: CreateUserInput) {
-    return this.prisma.user.create({ data: input });
+    // Hash the password before storing
+    const hashedPassword = await bcrypt.hash(input.password, 10);
+    
+    return this.prisma.user.create({ 
+      data: {
+        ...input,
+        password: hashedPassword
+      } 
+    });
   }
 
   // ✅ Get all users
