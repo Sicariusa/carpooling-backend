@@ -1,6 +1,7 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
+
 
 import { User } from 'src/schema/user';
 import { UsersService } from 'src/services/users.service';
@@ -18,8 +19,8 @@ export class UsersResolver {
 
   // ✅ Get user by ID
   @Query(() => User, { name: 'getUserById' })
-  async findOne(@Args('id', { type: () => String }) id: string) {
-    return this.usersService.findOne(id);
+  async findOne(@Args('universityId', { type: () => Int }) universityId: number) {
+    return this.usersService.findOne(universityId);
   }
 
   // ✅ Register a new user
@@ -31,15 +32,15 @@ export class UsersResolver {
   // ✅ Update a user
   @Mutation(() => User, { name: 'updateUser' })
   async update(
-    @Args('id', { type: () => String }) id: string,
+    @Args('universityId', { type: () => Int }) universityId: number,
     @Args('input') input: UpdateUserInput,
   ) {
-    return this.usersService.update(id, input);
+    return this.usersService.update(universityId, input);
   }
 
   // ✅ Delete a user
   @Mutation(() => Boolean, { name: 'deleteUser' })
-  async remove(@Args('id', { type: () => String }) id: string): Promise<boolean> {
-    return this.usersService.remove(id);
+  async remove(@Args('universityId', { type: () => Int }) universityId: number): Promise<boolean> {
+    return this.usersService.remove(universityId);
   }
 }

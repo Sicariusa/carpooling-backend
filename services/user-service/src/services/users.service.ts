@@ -19,27 +19,27 @@ export class UsersService {
     return this.prisma.user.findMany();
   }
 
-  // ✅ Get a user by ID
-  async findOne(id: string): Promise<User> {
-    const user = await this.prisma.user.findUnique({ where: { id } });
+  // ✅ Get a user by universityId
+  async findOne(universityId: number): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { universityId } });
     if (!user) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with university ID ${universityId} not found`);
     }
     return user;
   }
 
   // ✅ Update a user
-  async update(id: string, input: UpdateUserInput) {
-    return this.prisma.user.update({ where: { id }, data: input });
+  async update(universityId: number, input: UpdateUserInput) {
+    return this.prisma.user.update({ where: { universityId }, data: input });
   }
 
   // ✅ Delete a user
-  async remove(id: string) {
+  async remove(universityId: number) {
     try {
-      await this.prisma.user.delete({ where: { id } });
+      await this.prisma.user.delete({ where: { universityId } });
       return true;
     } catch (error) {
-      throw new NotFoundException(`User with ID ${id} not found`);
+      throw new NotFoundException(`User with university ID ${universityId} not found`);
     }
   }
 }
