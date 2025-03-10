@@ -1,0 +1,22 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")  // Connection for payments
+}
+
+model Payment {
+  id            String   @id @default(uuid())
+  userId        String   // Added userId back to the schema
+  rideId        String
+  amount        Decimal
+  status        PaymentStatus @default(PENDING)
+  transactionId String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
