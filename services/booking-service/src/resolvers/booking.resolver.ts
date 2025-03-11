@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
 import { CreateBookingInput, UpdateBookingInput } from '../dto/booking.dto';
 import { Booking } from '../schema/booking.schema';
 import { BookingService } from '../services/booking.service';
@@ -14,7 +14,7 @@ export class BookingResolver {
   }
 
   @Query(() => Booking)
-  async booking(@Args('id') id: number) {
+  async booking(@Args('id', { type: () => ID }) id: string) {
     return this.bookingService.getBookingById(id);
   }
 
@@ -29,7 +29,7 @@ export class BookingResolver {
   }
 
   @Mutation(() => Booking)
-  async deleteBooking(@Args('id') id: number) {
+  async deleteBooking(@Args('id', { type: () => ID }) id: string) {
     return this.bookingService.deleteBooking(id);
   }
 }

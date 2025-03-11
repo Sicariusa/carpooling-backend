@@ -4,9 +4,11 @@
 
 input CreateUserInput {
   email: String!
+  firstName: String!
+  lastName: String!
   password: String!
   phoneNumber: Int
-  role: String! = "PASSENGER"
+  role: Role! = PASSENGER
   universityId: Int!
 }
 
@@ -30,6 +32,13 @@ type Mutation {
 type Query {
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
+}
+
+"""User roles"""
+enum Role {
+  ADMIN
+  DRIVER
+  PASSENGER
 }
 
 input UpdateUserInput {

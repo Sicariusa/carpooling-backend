@@ -12,20 +12,37 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+// isVerified    Boolean   @default(false)
 
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  universityId Int    @unique // ✅ Rename from `university_id`
-  password     String
-  role         Role     @default(PASSENGER)
-  phoneNumber  String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String    @id @default(uuid())
+  email         String    @unique
+  universityId  Int       @unique
+  password      String
+  firstName     String
+  lastName      String
+  
+  isDriver      Boolean   @default(false)
+  isApproved    Boolean   @default(false)
+  gender        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  bookings      Booking[]
+  role          Role     @default(PASSENGER)
 }
 
 enum Role {
   PASSENGER
   DRIVER
   ADMIN
+}
+
+// This is a reference model to the Booking model in the booking-service
+// It won't create a table but allows for type-safe references
+model Booking {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  // Add other fields that you need to reference from the booking service
+  // These won't be stored in the user-service database
 }

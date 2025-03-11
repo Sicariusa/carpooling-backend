@@ -19,7 +19,6 @@ export class UsersService {
     return this.prisma.user.create({ 
       data: {
         ...restInput,
-        phoneNumber: phoneNumber.toString(),
         password: hashedPassword
       } 
     });
@@ -41,13 +40,12 @@ export class UsersService {
 
   // ✅ Update a user
   async update(universityId: number, input: UpdateUserInput) {
+    // Remove phoneNumber from input as it's not in the User model
     const { phoneNumber, ...restInput } = input;
+    
     return this.prisma.user.update({ 
       where: { universityId }, 
-      data: {
-        ...restInput,
-        phoneNumber: phoneNumber?.toString()
-      } 
+      data: restInput
     });
   }
 

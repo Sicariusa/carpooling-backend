@@ -1,0 +1,18 @@
+mutation CreateBooking {
+  createBooking(data: {
+    userId: "123",
+    pickupLocation: "University Main Gate",
+    dropoffLocation: "Downtown Mall",
+    status: "PENDING"
+  }) {
+    id
+    userId
+    passengerId
+    rideId
+    status
+    pickupLocation
+    dropoffLocation
+    createdAt
+    updatedAt
+  }
+} 

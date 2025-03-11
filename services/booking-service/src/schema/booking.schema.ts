@@ -1,18 +1,27 @@
-import { ObjectType, Field, Int } from '@nestjs/graphql';
+import { ObjectType, Field, Int, ID } from '@nestjs/graphql';
 
 @ObjectType()
 export class Booking {
-  @Field(() => Int)
-  id: number;
+  @Field(() => ID)
+  id: string;
 
-  @Field(() => Int)
-  rideId: number;
+  @Field(() => ID)
+  userId: string;
 
-  @Field(() => Int)
-  passengerId: number;
+  @Field(() => ID)
+  passengerId: string;
+
+  @Field(() => ID, { nullable: true })
+  rideId?: string;
 
   @Field()
   status: string;
+
+  @Field()
+  pickupLocation: string;
+
+  @Field()
+  dropoffLocation: string;
 
   @Field()
   createdAt: Date;

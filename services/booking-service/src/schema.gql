@@ -3,10 +3,13 @@
 # ------------------------------------------------------
 
 type Booking {
-  id: Int!
-  rideId: Int!
-  passengerId: Int!
+  id: ID!
+  userId: ID!
+  passengerId: ID!
+  rideId: ID
   status: String!
+  pickupLocation: String!
+  dropoffLocation: String!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -18,22 +21,26 @@ scalar DateTime
 
 type Query {
   bookings: [Booking!]!
-  booking(id: Float!): Booking!
+  booking(id: ID!): Booking!
 }
 
 type Mutation {
   createBooking(data: CreateBookingInput!): Booking!
   updateBooking(data: UpdateBookingInput!): Booking!
-  deleteBooking(id: Float!): Booking!
+  deleteBooking(id: ID!): Booking!
 }
 
 input CreateBookingInput {
-  rideId: Float!
-  passengerId: Float!
+  userId: ID!
+  passengerId: ID
+  pickupLocation: String!
+  dropoffLocation: String!
   status: String
 }
 
 input UpdateBookingInput {
-  id: Float!
+  id: ID!
   status: String
+  pickupLocation: String
+  dropoffLocation: String
 }

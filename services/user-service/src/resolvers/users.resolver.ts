@@ -15,6 +15,7 @@ export class UsersResolver {
 
   // ✅ Get all users (protected by default)
   @Query(() => [User], { name: 'getAllUsers' })
+  @Roles(Role.ADMIN)
   async findAll() {
     return this.usersService.findAll();
   }

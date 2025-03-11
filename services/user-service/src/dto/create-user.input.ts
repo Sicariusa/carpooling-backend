@@ -1,6 +1,12 @@
-import { InputType, Field, Int } from '@nestjs/graphql';
+import { InputType, Field, Int, registerEnumType } from '@nestjs/graphql';
 import { IsEmail, IsInt, IsNotEmpty, IsOptional, IsString, MinLength } from 'class-validator';
 import { Role } from '@prisma/client';
+
+// Register the Role enum with GraphQL
+registerEnumType(Role, {
+  name: 'Role',
+  description: 'User role',
+});
 
 @InputType()
 export class CreateUserInput {
@@ -20,9 +26,19 @@ export class CreateUserInput {
   @MinLength(6)
   password: string;
 
-  @Field(() => String, { defaultValue: Role.PASSENGER })
-  @IsOptional()
-  role?: Role;
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  firstName: string;
+
+  @Field()
+  @IsString()
+  @IsNotEmpty()
+  lastName: string;
+
+  @Field(() => Role, { defaultValue: Role.PASSENGER })
+  @IsNotEmpty()
+  role: Role;
 
   @Field(() => Int, { nullable: true })
   @IsOptional()
