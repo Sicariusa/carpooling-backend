@@ -13,12 +13,20 @@ export class AuthResolver {
     @Args('universityId', { type: () => Int }) universityId: number,
     @Args('password') password: string,
   ) {
+    // Publish event to Kafka
+  await producer.send({
+    topic: "user-events",
+    messages: [{ value: JSON.stringify({ event: "USER_VERIFIED", userId: universityId }) }],
+  });
+
+  console.log(`📢 USER_VERIFIED event sent for user: `); 
     return this.authService.login(universityId, password);
   }
 }
 
 // Define this at the top of the file or in a separate file if you prefer
 import { ObjectType, Field } from '@nestjs/graphql';
+import { producer } from 'src/utils/kafka';
 
 @ObjectType()
 export class LoginResponse {

@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { connectProducer } from './utils/kafka';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -19,7 +20,7 @@ async function bootstrap() {
       },
     }),
   );
-  
+  await connectProducer();  // Ensure Kafka producer is connected
   // Enable CORS
   app.enableCors();
   
