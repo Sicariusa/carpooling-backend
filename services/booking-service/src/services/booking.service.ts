@@ -30,9 +30,8 @@ export class BookingService {
       // Now create the booking
       return this.prisma.booking.create({
         data: {
-          userId: data.userId,
+          user: { connect: { id: data.userId } },
           passengerId: passengerId,
-          // rideId is now optional in the schema
           status: data.status || 'PENDING',
           pickupLocation: data.pickupLocation,
           dropoffLocation: data.dropoffLocation,
