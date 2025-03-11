@@ -33,20 +33,11 @@ export async function startConsumer(bookingService) {
           }
           
           const event = JSON.parse(messageValue);
+          
           logger.log(`Received Kafka event: ${JSON.stringify(event)}`);
           
-          // Handle user login events
-          if (event.type === 'USER_LOGIN') {
-            logger.log(`User login detected: ${event.userId} at ${event.timestamp || new Date().toISOString()}`);
-            
-            // If bookingService has a logUserLogin method, call it
-            if (bookingService && typeof bookingService.logUserLogin === 'function') {
-              await bookingService.logUserLogin(event.userId);
-            }
-          }
-          
           // Handle user verified events
-          else if (event.type === 'USER_VERIFIED') {
+          if (event.type === 'USER_VERIFIED') {
             logger.log(`User verified: ${event.userId}`);
             // Add any specific handling for user verification if needed
           }
