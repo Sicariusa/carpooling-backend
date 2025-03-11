@@ -19,7 +19,7 @@ export class AuthResolver {
     messages: [{ value: JSON.stringify({ event: "USER_VERIFIED", userId: universityId }) }],
   });
 
-  console.log(`📢 USER_VERIFIED event sent for user: `); 
+  console.log(`📢 USER_VERIFIED event sent for user: ${universityId}`); 
     return this.authService.login(universityId, password);
   }
 }
