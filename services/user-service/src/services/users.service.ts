@@ -14,10 +14,12 @@ export class UsersService {
   async create(input: CreateUserInput) {
     // Hash the password before storing
     const hashedPassword = await bcrypt.hash(input.password, 10);
+    const { phoneNumber, ...restInput } = input;
     
     return this.prisma.user.create({ 
       data: {
-        ...input,
+        ...restInput,
+        phoneNumber: phoneNumber.toString(),
         password: hashedPassword
       } 
     });
@@ -39,7 +41,14 @@ export class UsersService {
 
   // ✅ Update a user
   async update(universityId: number, input: UpdateUserInput) {
-    return this.prisma.user.update({ where: { universityId }, data: input });
+    const { phoneNumber, ...restInput } = input;
+    return this.prisma.user.update({ 
+      where: { universityId }, 
+      data: {
+        ...restInput,
+        phoneNumber: phoneNumber?.toString()
+      } 
+    });
   }
 
   // ✅ Delete a user
