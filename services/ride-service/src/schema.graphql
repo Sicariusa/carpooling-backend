@@ -1,0 +1,37 @@
+type Ride {
+  id: ID!
+  driverId: String!
+  origin: String!
+  destination: String!
+  departure: DateTime!
+  seatsAvailable: Int!
+  price: Float!
+}
+
+input CreateRideInput {
+  driverId: String!
+  origin: String!
+  destination: String!
+  departure: DateTime!
+  seatsAvailable: Int!
+  price: Float!
+}
+
+input UpdateRideInput {
+  origin: String
+  destination: String
+  departure: DateTime
+  seatsAvailable: Int
+  price: Float
+}
+
+type Query {
+  getAllRides: [Ride!]!
+  getRideById(id: ID!): Ride
+}
+
+type Mutation {
+  createRide(data: CreateRideInput!): Ride!
+  updateRide(id: ID!, data: UpdateRideInput!): Ride!
+  deleteRide(id: ID!): Ride!
+}

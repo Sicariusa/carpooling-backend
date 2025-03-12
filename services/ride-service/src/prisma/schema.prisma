@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"  // Change this if using another DB (e.g., MySQL, SQLite)
+  url      = env("DATABASE_URL")
+}
+
+model Ride {
+  id              String   @id @default(uuid())
+  driverId        String   @db.Uuid  // Foreign Key to User (Driver)
+  origin          String
+  destination     String
+  departure       DateTime
+  seatsAvailable  Int
+  price           Float
+  isGirlsOnly     Boolean  @default(false)
+  status          RideStatus @default(PENDING)  // ENUM: PENDING, ACTIVE, COMPLETED, CANCELLED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations (will do later)
+ // driver          User     @relation(fields: [driverId], references: [id])
+
+  @@index([origin, destination])  // Index for faster ride searches
+}
+
+enum RideStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
