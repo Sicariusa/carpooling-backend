@@ -1,24 +1,23 @@
-import { Module } from '@nestjs/common';
+// src/app.module.ts
 
-import { PrismaService } from './services/prisma.service';
+import { Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, ApolloDriverConfig } from '@nestjs/apollo';
 import { join } from 'path';
-import { UsersModule } from './modules/users.module';
-import { AuthModule } from './modules/auth.module';
 import { AppController } from 'src/app.controller';
 import { AppService } from 'src/app.service';
+import { BookingModule } from './modules/booking.module';
+import { PrismaService } from './services/prisma.service';
+
 
 @Module({
   imports: [
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
-      autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
-      sortSchema: true,
-      context: ({ req }) => ({ req }),
+      autoSchemaFile: join(process.cwd(), 'src/schema.gql'), // Generate schema file
+      playground: true, // Enable GraphQL Playground
     }),
-    UsersModule,
-    AuthModule,
+    BookingModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],

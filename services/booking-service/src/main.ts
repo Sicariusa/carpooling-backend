@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { connectProducer } from './utils/kafka';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -20,12 +19,12 @@ async function bootstrap() {
       },
     }),
   );
-  await connectProducer();  // Ensure Kafka producer is connected
+  
   // Enable CORS
   app.enableCors();
   
   // Start the server
-  const port = process.env.PORT ?? 3000;
+  const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(`Application is running on: ${await app.getUrl()}`);
   console.log(`GraphQL Playground: http://localhost:${port}/graphql`);
