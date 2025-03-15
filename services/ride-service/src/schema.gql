@@ -1,0 +1,49 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+type Ride {
+  id: String!
+  driverId: String!
+  origin: String!
+  destination: String!
+  departure: DateTime!
+  price: Float!
+  isGirlsOnly: Boolean!
+  status: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Query {
+  getAllRides: [Ride!]!
+  getRideById(id: String!): Ride!
+}
+
+type Mutation {
+  createRide(data: CreateRideInput!): Ride!
+  updateRide(id: String!, data: UpdateRideInput!): Ride!
+  deleteRide(id: String!): Ride!
+}
+
+input CreateRideInput {
+  driverId: String!
+  origin: String!
+  destination: String!
+  departure: DateTime!
+  seatsAvailable: Float!
+  price: Float!
+}
+
+input UpdateRideInput {
+  origin: String
+  destination: String
+  departure: DateTime
+  seatsAvailable: Float
+  price: Float
+}
