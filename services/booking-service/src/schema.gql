@@ -29,25 +29,14 @@ scalar DateTime
 
 type Query {
   AllBookings: [Booking!]!
-  UserBooking(id: ID!): Booking!
-  userBookings: [Booking!]!
-  rideBookings(rideId: ID!): [Booking!]!
-  filterBookings(filters: BookingFilterInput!): [Booking!]!
-}
-
-input BookingFilterInput {
-  userId: ID
-  rideId: ID
-  status: BookingStatus
+  getBooking(id: ID!): Booking!
 }
 
 type Mutation {
   BookRide(data: CreateBookingInput!): Booking!
-  updateBooking(data: UpdateBookingInput!): Booking!
   cancelBooking(id: ID!): Booking!
   acceptBooking(id: ID!): Booking!
   rejectBooking(id: ID!): Booking!
-  deleteBooking(id: ID!): Booking!
 }
 
 input CreateBookingInput {
@@ -57,11 +46,4 @@ input CreateBookingInput {
   pickupLocation: String!
   dropoffLocation: String!
   status: BookingStatus
-}
-
-input UpdateBookingInput {
-  id: ID!
-  status: BookingStatus
-  pickupLocation: String
-  dropoffLocation: String
 }
