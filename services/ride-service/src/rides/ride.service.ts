@@ -141,21 +141,15 @@ export class RideService implements OnModuleInit {
   async updateAvailableSeats(rideId: string, change: number) {
     const ride = await this.getRideById(rideId);
     
-    this.logger.log(`Updating seats for ride ${rideId}: current=${ride.seatsAvailable}, change=${change}`);
-    
     const newSeatsAvailable = ride.seatsAvailable + change;
     if (newSeatsAvailable < 0) {
-      this.logger.warn(`Cannot update seats: ${ride.seatsAvailable} + ${change} would result in negative seats`);
       throw new BadRequestException(`Not enough seats available (current: ${ride.seatsAvailable})`);
     }
     
-    const updatedRide = await this.prisma.ride.update({
+    return this.prisma.ride.update({
       where: { id: rideId },
       data: { seatsAvailable: newSeatsAvailable },
     });
-    
-    this.logger.log(`Seats updated for ride ${rideId}: ${ride.seatsAvailable} -> ${updatedRide.seatsAvailable}`);
-    return updatedRide;
   }
 
   // // ✅ Notify driver about booking

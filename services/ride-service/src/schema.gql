@@ -54,6 +54,7 @@ type Mutation {
   deleteRide(id: String!): Ride!
   setRideStatus(id: String!, status: String!): Ride!
   setRideAsGirlsOnly(id: String!, isGirlsOnly: Boolean!): Ride!
+  updateAvailableSeats(id: String!, change: Int!): Ride!
 }
 
 input CreateRideInput {

@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args } from "@nestjs/graphql";
+import { Resolver, Query, Mutation, Args, Int } from "@nestjs/graphql";
 import { RideService } from './ride.service';
 import { Ride, RideStatus } from './ride.model';
 import { CreateRideInput, UpdateRideInput, SearchRideInput } from './dto/ride.dto';
@@ -56,6 +56,14 @@ export class RideResolver {
     @Args('isGirlsOnly') isGirlsOnly: boolean
   ) {
     return this.rideService.updateRide(id, { isGirlsOnly });
+  }
+
+  @Mutation(() => Ride)
+  async updateAvailableSeats(
+    @Args('id') id: string,
+    @Args('change', { type: () => Int }) change: number
+  ) {
+    return this.rideService.updateAvailableSeats(id, change);
   }
 
   // @Mutation(() => Boolean)

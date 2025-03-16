@@ -35,30 +35,45 @@ export class BookingService implements OnModuleInit {
     // First check if the ride exists and has available seats
     try {
       const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      console.log(`Checking available seats for ride ${data.rideId} at ${rideServiceUrl}`);
       
-      const rideResponse = await fetch(`${rideServiceUrl}/rides/${data.rideId}`)
-        .catch(error => {
-          console.error(`Network error fetching ride: ${error.message}`);
-          return null;
-        });
+      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query {
+              getRideById(id: "${data.rideId}") {
+                id
+                seatsAvailable
+                bookingDeadline
+              }
+            }
+          `
+        }),
+      }).catch(error => {
+        console.error(`Network error fetching ride: ${error.message}`);
+        return null;
+      });
       
       if (rideResponse && rideResponse.ok) {
-        const ride = await rideResponse.json();
+        const result = await rideResponse.json();
         
-        // Check if there are seats available
-        if (ride.seatsAvailable <= 0) {
-          throw new BadRequestException('No seats available for this ride');
+        if (result.errors) {
+          console.warn(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+        } else if (result.data && result.data.getRideById) {
+          const ride = result.data.getRideById;
+          
+          // Check if there are seats available
+          if (ride.seatsAvailable <= 0) {
+            throw new BadRequestException('No seats available for this ride');
+          }
         }
-        
-        console.log(`Ride has ${ride.seatsAvailable} seats available`);
       }
     } catch (error) {
       if (error instanceof BadRequestException) {
         throw error;
       }
       console.warn(`Error checking ride seats: ${error.message}`);
-      // Continue with booking creation even if seat check fails
     }
     
     // Create the booking
@@ -76,44 +91,47 @@ export class BookingService implements OnModuleInit {
     // Try to update available seats in the ride service
     try {
       const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      console.log(`Attempting to update seats for ride ${data.rideId} at ${rideServiceUrl}`);
       
-      const response = await fetch(`${rideServiceUrl}/rides/${data.rideId}/seats`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ change: -1 }), // Decrease available seats by 1
+      const response = await fetch(`${rideServiceUrl}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            mutation {
+              updateAvailableSeats(id: "${data.rideId}", change: -1) {
+                id
+                seatsAvailable
+              }
+            }
+          `
+        }),
       }).catch(error => {
         console.error(`Network error updating ride seats: ${error.message}`);
         return null;
       });
       
       if (!response) {
-        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${data.rideId}/seats`);
-      } else if (!response.ok) {
-        const errorText = await response.text().catch(() => 'Unknown error');
-        console.warn(`Failed to update seats for ride ${data.rideId}: Status ${response.status} - ${errorText}`);
+        console.warn(`Failed to connect to ride service`);
+      } else if (response.ok) {
+        const result = await response.json();
         
-        // If the error is due to no seats available, delete the booking and throw an error
-        if (response.status === 400 && errorText.includes('Not enough seats available')) {
-          // Delete the booking we just created
-          await this.prisma.booking.delete({ where: { id: booking.id } });
-          throw new BadRequestException('No seats available for this ride');
+        if (result.errors) {
+          console.warn(`GraphQL errors: ${JSON.stringify(result.errors)}`);
+          
+          // If the error is due to no seats available, delete the booking and throw an error
+          const errorMessage = JSON.stringify(result.errors);
+          if (errorMessage.includes('Not enough seats available')) {
+            await this.prisma.booking.delete({ where: { id: booking.id } });
+            throw new BadRequestException('No seats available for this ride');
+          }
         }
-      } else {
-        console.log(`Successfully updated seats for ride ${data.rideId}`);
       }
     } catch (error) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
       console.error(`Error updating ride seats: ${error.message}`);
     }
-    
-    // // Try to notify the driver
-    // try {
-    //   await this.notifyDriver(data.rideId, 'booked', data.passengerId);
-    // } catch (error) {
-    //   console.error(`Error notifying driver: ${error.message}`);
-    // }
     
     return booking;
   }
@@ -165,50 +183,53 @@ export class BookingService implements OnModuleInit {
     // Check if the booking can be cancelled (deadline not passed)
     try {
       const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      console.log(`Checking ride ${booking.rideId} for cancellation at ${rideServiceUrl}`);
       
-      // Use fetch instead of axios
-      const rideResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}`)
-        .catch(error => {
-          console.error(`Network error fetching ride: ${error.message}`);
-          return null;
-        });
+      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query {
+              getRideById(id: "${booking.rideId}") {
+                id
+                bookingDeadline
+              }
+            }
+          `
+        }),
+      }).catch(error => {
+        console.error(`Network error fetching ride: ${error.message}`);
+        return null;
+      });
       
-      if (!rideResponse) {
-        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${booking.rideId}`);
-      } else if (rideResponse.ok) {
-        const ride = await rideResponse.json();
+      if (rideResponse && rideResponse.ok) {
+        const result = await rideResponse.json();
         
-        if (ride.bookingDeadline && new Date(ride.bookingDeadline) < new Date()) {
-          throw new BadRequestException('Cancellation deadline has passed for this ride');
+        if (!result.errors && result.data && result.data.getRideById) {
+          const ride = result.data.getRideById;
+          
+          if (ride.bookingDeadline && new Date(ride.bookingDeadline) < new Date()) {
+            throw new BadRequestException('Cancellation deadline has passed for this ride');
+          }
+          
+          // Update available seats in the ride service
+          await fetch(`${rideServiceUrl}/graphql`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: `
+                mutation {
+                  updateAvailableSeats(id: "${booking.rideId}", change: 1) {
+                    id
+                    seatsAvailable
+                  }
+                }
+              `
+            }),
+          }).catch(error => {
+            console.error(`Network error updating ride seats: ${error.message}`);
+          });
         }
-        
-        // Update available seats in the ride service
-        const seatResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}/seats`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ change: 1 }), // Increase available seats by 1
-        }).catch(error => {
-          console.error(`Network error updating ride seats: ${error.message}`);
-          return null;
-        });
-        
-        if (!seatResponse) {
-          console.warn(`Failed to connect to ride service for seat update at ${rideServiceUrl}/rides/${booking.rideId}/seats`);
-        } else if (!seatResponse.ok) {
-          const errorText = await seatResponse.text().catch(() => 'Unknown error');
-          console.warn(`Failed to update seats for ride ${booking.rideId}: Status ${seatResponse.status} - ${errorText}`);
-        } else {
-          console.log(`Successfully updated seats for ride ${booking.rideId}`);
-        }
-      } else if (rideResponse.status !== 404) {
-        // If it's not a 404, log the error
-        const errorText = await rideResponse.text().catch(() => 'Unknown error');
-        console.warn(`Failed to fetch ride ${booking.rideId}: Status ${rideResponse.status} - ${errorText}`);
-      } else {
-        console.log(`Ride with ID ${booking.rideId} not found, but proceeding with cancellation`);
       }
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -219,15 +240,10 @@ export class BookingService implements OnModuleInit {
     }
     
     // Update booking status to cancelled
-    const updatedBooking = await this.prisma.booking.update({
+    return this.prisma.booking.update({
       where: { id },
       data: { status: BookingStatus.CANCELLED },
     });
-    
-    // // Notify the driver about the cancellation
-    // await this.notifyDriver(booking.rideId, 'cancelled', booking.passengerId);
-    
-    return updatedBooking;
   }
 
   async acceptBooking(id: string, driverId: string) {
@@ -236,29 +252,35 @@ export class BookingService implements OnModuleInit {
     // Check if the booking is for a ride owned by the driver
     try {
       const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      console.log(`Checking ride ${booking.rideId} for acceptance at ${rideServiceUrl}`);
       
-      // Use fetch instead of axios
-      const rideResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}`)
-        .catch(error => {
-          console.error(`Network error fetching ride: ${error.message}`);
-          return null;
-        });
+      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query {
+              getRideById(id: "${booking.rideId}") {
+                id
+                driverId
+              }
+            }
+          `
+        }),
+      }).catch(error => {
+        console.error(`Network error fetching ride: ${error.message}`);
+        return null;
+      });
       
-      if (!rideResponse) {
-        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${booking.rideId}`);
-      } else if (rideResponse.ok) {
-        const ride = await rideResponse.json();
+      if (rideResponse && rideResponse.ok) {
+        const result = await rideResponse.json();
         
-        if (ride.driverId !== driverId) {
-          throw new ForbiddenException('You can only accept bookings for your own rides');
+        if (!result.errors && result.data && result.data.getRideById) {
+          const ride = result.data.getRideById;
+          
+          if (ride.driverId !== driverId) {
+            throw new ForbiddenException('You can only accept bookings for your own rides');
+          }
         }
-      } else if (rideResponse.status !== 404) {
-        // If it's not a 404, log the error
-        const errorText = await rideResponse.text().catch(() => 'Unknown error');
-        console.warn(`Failed to fetch ride ${booking.rideId}: Status ${rideResponse.status} - ${errorText}`);
-      } else {
-        console.log(`Ride with ID ${booking.rideId} not found, but proceeding with acceptance`);
       }
     } catch (error) {
       if (error instanceof ForbiddenException) {
@@ -281,50 +303,53 @@ export class BookingService implements OnModuleInit {
     // Check if the booking is for a ride owned by the driver
     try {
       const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      console.log(`Checking ride ${booking.rideId} for rejection at ${rideServiceUrl}`);
       
-      // Use fetch instead of axios
-      const rideResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}`)
-        .catch(error => {
-          console.error(`Network error fetching ride: ${error.message}`);
-          return null;
-        });
+      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          query: `
+            query {
+              getRideById(id: "${booking.rideId}") {
+                id
+                driverId
+              }
+            }
+          `
+        }),
+      }).catch(error => {
+        console.error(`Network error fetching ride: ${error.message}`);
+        return null;
+      });
       
-      if (!rideResponse) {
-        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${booking.rideId}`);
-      } else if (rideResponse.ok) {
-        const ride = await rideResponse.json();
+      if (rideResponse && rideResponse.ok) {
+        const result = await rideResponse.json();
         
-        if (ride.driverId !== driverId) {
-          throw new ForbiddenException('You can only reject bookings for your own rides');
+        if (!result.errors && result.data && result.data.getRideById) {
+          const ride = result.data.getRideById;
+          
+          if (ride.driverId !== driverId) {
+            throw new ForbiddenException('You can only reject bookings for your own rides');
+          }
+          
+          // Update available seats in the ride service
+          await fetch(`${rideServiceUrl}/graphql`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: `
+                mutation {
+                  updateAvailableSeats(id: "${booking.rideId}", change: 1) {
+                    id
+                    seatsAvailable
+                  }
+                }
+              `
+            }),
+          }).catch(error => {
+            console.error(`Network error updating ride seats: ${error.message}`);
+          });
         }
-        
-        // Update available seats in the ride service
-        const seatResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}/seats`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ change: 1 }), // Increase available seats by 1
-        }).catch(error => {
-          console.error(`Network error updating ride seats: ${error.message}`);
-          return null;
-        });
-        
-        if (!seatResponse) {
-          console.warn(`Failed to connect to ride service for seat update at ${rideServiceUrl}/rides/${booking.rideId}/seats`);
-        } else if (!seatResponse.ok) {
-          const errorText = await seatResponse.text().catch(() => 'Unknown error');
-          console.warn(`Failed to update seats for ride ${booking.rideId}: Status ${seatResponse.status} - ${errorText}`);
-        } else {
-          console.log(`Successfully updated seats for ride ${booking.rideId}`);
-        }
-      } else if (rideResponse.status !== 404) {
-        // If it's not a 404, log the error
-        const errorText = await rideResponse.text().catch(() => 'Unknown error');
-        console.warn(`Failed to fetch ride ${booking.rideId}: Status ${rideResponse.status} - ${errorText}`);
-      } else {
-        console.log(`Ride with ID ${booking.rideId} not found, but proceeding with rejection`);
       }
     } catch (error) {
       if (error instanceof ForbiddenException) {

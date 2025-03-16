@@ -13,11 +13,6 @@ async function bootstrap() {
       whitelist: true,
       forbidNonWhitelisted: true,
       transformOptions: { enableImplicitConversion: true },
-      disableErrorMessages: false,
-      exceptionFactory: (errors) => {
-        console.log('Validation errors:', JSON.stringify(errors, null, 2));
-        return new Error('Validation failed: ' + JSON.stringify(errors));
-      },
     }),
   );
 
@@ -33,6 +28,5 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`🚀 Ride-Service running on: ${await app.getUrl()}`);
   console.log(`📌 GraphQL Playground: http://localhost:${port}/graphql`);
- 
 }
 bootstrap();
