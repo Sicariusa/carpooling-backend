@@ -12,7 +12,7 @@ export const consumer = kafka.consumer({ groupId: "ride-group" });
 
 let isConsumerInitialized = false;
 
-// ✅ Store verified users in memory (or use Redis for persistence)
+//  Store verified users in memory (or use Redis for persistence)
 const verifiedUsers = new Set<string>();
 
 /**
@@ -28,10 +28,10 @@ export async function connectConsumer() {
     await consumer.connect();
     await consumer.subscribe({ topic: "user-events", fromBeginning: true });
 
-    logger.log('✅ Kafka Consumer Connected and Subscribed to user-events');
+    logger.log(' Kafka Consumer Connected and Subscribed to user-events');
     isConsumerInitialized = true;
   } catch (error) {
-    logger.error(`❌ Failed to connect Kafka consumer: ${error.message}`);
+    logger.error(` Failed to connect Kafka consumer: ${error.message}`);
     throw error;
   }
 }
@@ -63,7 +63,7 @@ export async function startConsumer() {
 
     logger.log('🚀 Kafka consumer started and listening for user events');
   } catch (error) {
-    logger.error(`❌ Failed to start Kafka consumer: ${error.message}`);
+    logger.error(` Failed to start Kafka consumer: ${error.message}`);
     throw error;
   }
 }
@@ -73,16 +73,16 @@ export async function startConsumer() {
  * @param event - The parsed Kafka event message
  */
 function handleKafkaEvent(event: any) {
-  const eventType = event.type || event.event;  // ✅ Handle both formats
+  const eventType = event.type || event.event;  //  Handle both formats
 
   switch (eventType) {
     case 'USER_VERIFIED':
-      logger.log(`✅ User verified: ${event.userId}`);
-      verifiedUsers.add(event.userId.toString()); // ✅ Ensure it's stored as a string
+      logger.log(` User verified: ${event.userId}`);
+      verifiedUsers.add(event.userId.toString()); //  Ensure it's stored as a string
       break;
 
     default:
-      logger.warn(`⚠️ Unknown event type: ${eventType}`);
+      logger.warn(` Unknown event type: ${eventType}`);
       break;
   }
 }
@@ -91,7 +91,7 @@ function handleKafkaEvent(event: any) {
  * @param userId - The ID of the user (driver)
  */
 export function isUserVerified(userId: string): boolean {
-  logger.log(`✅ Users verified: ${verifiedUsers}`);
+  logger.log(` Users verified: ${verifiedUsers}`);
   return verifiedUsers.has(userId);
 }
 
@@ -101,9 +101,9 @@ export function isUserVerified(userId: string): boolean {
 export async function disconnectConsumer() {
   try {
     await consumer.disconnect();
-    logger.log('🔌 Kafka Consumer Disconnected');
+    logger.log(' Kafka Consumer Disconnected');
     isConsumerInitialized = false;
   } catch (error) {
-    logger.error(`❌ Failed to disconnect Kafka consumer: ${error.message}`);
+    logger.error(` Failed to disconnect Kafka consumer: ${error.message}`);
   }
 }

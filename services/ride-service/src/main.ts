@@ -6,7 +6,7 @@ import { connectConsumer, startConsumer } from './utils/kafka';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // ✅ Enable validation pipes
+  //  Enable validation pipes
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
@@ -21,14 +21,14 @@ async function bootstrap() {
     }),
   );
 
-  // ✅ Enable CORS
+  //  Enable CORS
   app.enableCors();
 
-  // ✅ Start Kafka Consumer
+  //  Start Kafka Consumer
   await connectConsumer();
   await startConsumer();
 
-  // ✅ Start the server
+  //  Start the server
   const port = process.env.PORT ?? 3002;
   await app.listen(port);
   console.log(`🚀 Ride-Service running on: ${await app.getUrl()}`);
