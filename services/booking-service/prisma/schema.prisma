@@ -17,8 +17,8 @@ model Booking {
   id              String    @id @default(uuid())
   userId          String    // Foreign key to User in user-service
   passengerId     String    // ID of the passenger making the booking
-  rideId          String?   // Foreign key to Ride in ride-service (optional for now)
-  status          String    @default("PENDING") // PENDING, CONFIRMED, CANCELLED
+  rideId          String    // Foreign key to Ride in ride-service
+  status          BookingStatus @default(PENDING) // PENDING, CONFIRMED, CANCELLED, REJECTED
   pickupLocation  String
   dropoffLocation String
   createdAt       DateTime  @default(now())
@@ -26,7 +26,14 @@ model Booking {
   
   // This is a virtual relation - not stored in DB but used for Prisma queries
   user            User?     @relation(fields: [userId], references: [id])
-  ride            Ride?     @relation(fields: [rideId], references: [id])
+  //ride            Ride?     @relation(fields: [rideId], references: [id])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REJECTED
 }
 
 // This is a reference model to the User model in the user-service
@@ -44,9 +51,16 @@ model User {
 // This is a reference model to the Ride model in the ride-service
 // It won't create a table but allows for type-safe references
 model Ride {
-  id        String    @id
-  driverId  String
-  bookings  Booking[]
+  id             String    @id
+  driverId       String
+  origin         String
+  destination    String
+  departure      DateTime
+  seatsAvailable Int
+  price          Float
+  isGirlsOnly    Boolean   @default(false)
+  status         String
+  bookings       Booking[]
   // Add other fields that you need to reference from the ride service
   // These won't be stored in the booking-service database
 }

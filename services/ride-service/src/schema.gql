@@ -8,9 +8,13 @@ type Ride {
   origin: String!
   destination: String!
   departure: DateTime!
+  seatsAvailable: Int!
   price: Float!
   isGirlsOnly: Boolean!
-  status: String!
+  status: RideStatus!
+  isFromGIU: Boolean!
+  isToGIU: Boolean!
+  bookingDeadline: DateTime
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -20,15 +24,36 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
+"""Status of a ride"""
+enum RideStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
 type Query {
   getAllRides: [Ride!]!
   getRideById(id: String!): Ride!
+  searchRides(searchParams: SearchRideInput!): [Ride!]!
+  getDriverRides(driverId: String!): [Ride!]!
+}
+
+input SearchRideInput {
+  origin: String
+  destination: String
+  isFromGIU: Boolean
+  isToGIU: Boolean
+  isGirlsOnly: Boolean
+  departureDate: DateTime
 }
 
 type Mutation {
   createRide(data: CreateRideInput!): Ride!
   updateRide(id: String!, data: UpdateRideInput!): Ride!
   deleteRide(id: String!): Ride!
+  setRideStatus(id: String!, status: String!): Ride!
+  setRideAsGirlsOnly(id: String!, isGirlsOnly: Boolean!): Ride!
 }
 
 input CreateRideInput {
@@ -36,14 +61,21 @@ input CreateRideInput {
   origin: String!
   destination: String!
   departure: DateTime!
-  seatsAvailable: Float!
+  seatsAvailable: Int!
   price: Float!
+  isGirlsOnly: Boolean! = false
+  isFromGIU: Boolean! = false
+  isToGIU: Boolean! = false
+  bookingDeadline: DateTime
 }
 
 input UpdateRideInput {
   origin: String
   destination: String
   departure: DateTime
-  seatsAvailable: Float
+  seatsAvailable: Int
   price: Float
+  isGirlsOnly: Boolean
+  status: String
+  bookingDeadline: DateTime
 }

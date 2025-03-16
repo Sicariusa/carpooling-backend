@@ -1,7 +1,7 @@
 import { Resolver, Query, Mutation, Args } from "@nestjs/graphql";
 import { RideService } from './ride.service';
-import { Ride } from './ride.model'; // Import the Ride type from Prisma client
-import { CreateRideInput, UpdateRideInput } from './dto/ride.dto'; // Import the DTOs
+import { Ride, RideStatus } from './ride.model';
+import { CreateRideInput, UpdateRideInput, SearchRideInput } from './dto/ride.dto';
 
 @Resolver(() => Ride)
 export class RideResolver {
@@ -15,6 +15,16 @@ export class RideResolver {
   @Query(() => Ride)
   async getRideById(@Args('id') id: string) {
     return this.rideService.getRideById(id);
+  }
+
+  @Query(() => [Ride])
+  async searchRides(@Args('searchParams') searchParams: SearchRideInput) {
+    return this.rideService.searchRides(searchParams);
+  }
+
+  @Query(() => [Ride])
+  async getDriverRides(@Args('driverId') driverId: string) {
+    return this.rideService.getDriverRides(driverId);
   }
 
   @Mutation(() => Ride)
@@ -31,4 +41,29 @@ export class RideResolver {
   async deleteRide(@Args('id') id: string) {
     return this.rideService.deleteRide(id);
   }
+
+  @Mutation(() => Ride)
+  async setRideStatus(
+    @Args('id') id: string, 
+    @Args('status') status: RideStatus
+  ) {
+    return this.rideService.updateRide(id, { status });
+  }
+
+  @Mutation(() => Ride)
+  async setRideAsGirlsOnly(
+    @Args('id') id: string, 
+    @Args('isGirlsOnly') isGirlsOnly: boolean
+  ) {
+    return this.rideService.updateRide(id, { isGirlsOnly });
+  }
+
+  // @Mutation(() => Boolean)
+  // async notifyDriver(
+  //   @Args('rideId') rideId: string,
+  //   @Args('action') action: 'booked' | 'cancelled',
+  //   @Args('passengerId') passengerId: string
+  // ) {
+  //   return this.rideService.notifyDriver(rideId, action, passengerId);
+  // }
 }

@@ -19,11 +19,15 @@ model Ride {
   status          RideStatus @default(PENDING)  // ENUM: PENDING, ACTIVE, COMPLETED, CANCELLED
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  isFromGIU       Boolean  @default(false)  // Indicates if the ride is from GIU
+  isToGIU         Boolean  @default(false)  // Indicates if the ride is to GIU
+  bookingDeadline DateTime? // Deadline for booking cancellations
 
   // Relations (will do later)
  // driver          User     @relation(fields: [driverId], references: [id])
 
   @@index([origin, destination])  // Index for faster ride searches
+  @@index([isFromGIU, isToGIU])   // Index for GIU-related searches
 }
 
 enum RideStatus {

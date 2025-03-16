@@ -1,5 +1,17 @@
-import { Field, InputType, ID } from '@nestjs/graphql';
-import { IsString, IsOptional, IsNotEmpty } from 'class-validator';
+import { Field, InputType, ID, registerEnumType } from '@nestjs/graphql';
+import { IsString, IsOptional, IsNotEmpty, IsEnum } from 'class-validator';
+
+export enum BookingStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+  CANCELLED = 'CANCELLED',
+  REJECTED = 'REJECTED'
+}
+
+registerEnumType(BookingStatus, {
+  name: 'BookingStatus',
+  description: 'Status of a booking',
+});
 
 @InputType()
 export class CreateBookingInput {
@@ -13,6 +25,11 @@ export class CreateBookingInput {
   @IsString()
   passengerId?: string; // The ID of the passenger (optional, will default to userId)
 
+  @Field(() => ID)
+  @IsNotEmpty()
+  @IsString()
+  rideId: string; // The ID of the ride being booked
+
   @Field()
   @IsNotEmpty()
   @IsString()
@@ -23,10 +40,10 @@ export class CreateBookingInput {
   @IsString()
   dropoffLocation: string; // The dropoff location (required)
 
-  @Field({ nullable: true })
+  @Field(() => BookingStatus, { nullable: true })
   @IsOptional()
-  @IsString()
-  status?: string; // The status of the booking (optional)
+  @IsEnum(BookingStatus)
+  status?: BookingStatus; // The status of the booking (optional)
 }
 
 @InputType()
@@ -36,10 +53,10 @@ export class UpdateBookingInput {
   @IsString()
   id: string; // The ID of the booking to be updated (required)
 
-  @Field({ nullable: true })
+  @Field(() => BookingStatus, { nullable: true })
   @IsOptional()
-  @IsString()
-  status?: string; // The new status of the booking (optional)
+  @IsEnum(BookingStatus)
+  status?: BookingStatus; // The new status of the booking (optional)
 
   @Field({ nullable: true })
   @IsOptional()
@@ -50,4 +67,22 @@ export class UpdateBookingInput {
   @IsOptional()
   @IsString()
   dropoffLocation?: string; // The dropoff location (optional)
+}
+
+@InputType()
+export class BookingFilterInput {
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsString()
+  userId?: string; // Filter by user ID
+
+  @Field(() => ID, { nullable: true })
+  @IsOptional()
+  @IsString()
+  rideId?: string; // Filter by ride ID
+
+  @Field(() => BookingStatus, { nullable: true })
+  @IsOptional()
+  @IsEnum(BookingStatus)
+  status?: BookingStatus; // Filter by status
 }

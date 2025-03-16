@@ -6,12 +6,20 @@ type Booking {
   id: ID!
   userId: ID!
   passengerId: ID!
-  rideId: ID
-  status: String!
+  rideId: ID!
+  status: BookingStatus!
   pickupLocation: String!
   dropoffLocation: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""Status of a booking"""
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REJECTED
 }
 
 """
@@ -22,25 +30,38 @@ scalar DateTime
 type Query {
   bookings: [Booking!]!
   booking(id: ID!): Booking!
+  userBookings(userId: ID!): [Booking!]!
+  rideBookings(rideId: ID!): [Booking!]!
+  filterBookings(filters: BookingFilterInput!): [Booking!]!
+}
+
+input BookingFilterInput {
+  userId: ID
+  rideId: ID
+  status: BookingStatus
 }
 
 type Mutation {
   createBooking(data: CreateBookingInput!): Booking!
   updateBooking(data: UpdateBookingInput!): Booking!
+  cancelBooking(id: ID!, userId: ID!): Booking!
+  acceptBooking(id: ID!, driverId: ID!): Booking!
+  rejectBooking(id: ID!, driverId: ID!): Booking!
   deleteBooking(id: ID!): Booking!
 }
 
 input CreateBookingInput {
   userId: ID!
   passengerId: ID
+  rideId: ID!
   pickupLocation: String!
   dropoffLocation: String!
-  status: String
+  status: BookingStatus
 }
 
 input UpdateBookingInput {
   id: ID!
-  status: String
+  status: BookingStatus
   pickupLocation: String
   dropoffLocation: String
 }

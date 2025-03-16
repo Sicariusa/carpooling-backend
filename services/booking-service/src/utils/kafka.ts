@@ -1,58 +1,42 @@
-import { Kafka } from "kafkajs";
+import { Kafka, Consumer, Producer } from "kafkajs";
 import { Logger } from "@nestjs/common";
 
 const logger = new Logger('Kafka');
 
+let consumer: Consumer;
+let producer: Producer;
+
 const kafka = new Kafka({
   clientId: "booking-service",
-  brokers: ["localhost:9092"],
+  brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
 });
 
-export const consumer = kafka.consumer({ groupId: "booking-group" });
-
 export async function connectConsumer() {
-  try {
-    await consumer.connect();
-    await consumer.subscribe({ topic: "user-events", fromBeginning: true });
-    logger.log('Kafka Consumer Connected and Subscribed to user-events');
-  } catch (error) {
-    logger.error(`Failed to connect Kafka consumer: ${error.message}`);
-    throw error;
-  }
+  consumer = kafka.consumer({ groupId: "booking-service-group" });
+  await consumer.connect();
+  
+  // Also initialize the producer
+  producer = kafka.producer();
+  await producer.connect();
 }
 
 export async function startConsumer(bookingService) {
   try {
+    await consumer.subscribe({ topic: "user-events", fromBeginning: true });
+    
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         try {
-          const messageValue = message.value?.toString();
-          if (!messageValue) {
-            logger.warn('Received empty Kafka message');
-            return;
+          const payload = JSON.parse(message.value?.toString() || '{}');
+          console.log(`Received message from topic ${topic}:`, payload);
+          
+          // Handle different types of events
+          if (payload.event === 'USER_LOGIN') {
+            await bookingService.logUserLogin(payload.userId);
           }
           
-          const event = JSON.parse(messageValue);
-          
-          logger.log(`Received Kafka event: ${JSON.stringify(event)}`);
-          
-          // Handle user verified events
-          if (event.type === 'USER_VERIFIED') {
-            logger.log(`User verified: ${event.userId}`);
-            // Add any specific handling for user verification if needed
-          }
-          
-          // Handle legacy format (for backward compatibility)
-          else if (event.event === 'USER_VERIFIED') {
-            logger.log(`User verified (legacy format): ${event.userId}`);
-            // Add any specific handling for user verification if needed
-          }
-          
-          else {
-            logger.warn(`Unknown event type: ${event.type || event.event}`);
-          }
         } catch (error) {
-          logger.error(`Error processing Kafka message: ${error.message}`);
+          console.error('Error processing Kafka message:', error);
         }
       },
     });
@@ -71,5 +55,21 @@ export async function disconnectConsumer() {
     logger.log('Kafka Consumer Disconnected');
   } catch (error) {
     logger.error(`Failed to disconnect Kafka consumer: ${error.message}`);
+  }
+}
+
+// Send a message to a Kafka topic
+export async function produceMessage(topic: string, message: any) {
+  try {
+    await producer.send({
+      topic,
+      messages: [
+        { value: JSON.stringify(message) },
+      ],
+    });
+    return true;
+  } catch (error) {
+    console.error(`Error producing message to ${topic}:`, error);
+    return false;
   }
 }

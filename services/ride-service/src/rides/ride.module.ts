@@ -5,5 +5,6 @@ import { PrismaService } from '../../prisma/prisma.service';
 
 @Module({
   providers: [RideService, RideResolver, PrismaService],
+  exports: [RideService],
 })
 export class RideModule {}

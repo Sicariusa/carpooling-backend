@@ -1,4 +1,16 @@
-import { ObjectType, Field, Float } from "@nestjs/graphql";
+import { ObjectType, Field, Float, Int, registerEnumType } from "@nestjs/graphql";
+
+export enum RideStatus {
+  PENDING = 'PENDING',
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
+}
+
+registerEnumType(RideStatus, {
+  name: 'RideStatus',
+  description: 'Status of a ride',
+});
 
 @ObjectType()
 export class Ride {
@@ -17,14 +29,26 @@ export class Ride {
   @Field()
   departure: Date;
 
+  @Field(() => Int)
+  seatsAvailable: number;
+
   @Field(() => Float)
   price: number;
 
   @Field()
   isGirlsOnly: boolean;
 
+  @Field(() => RideStatus)
+  status: RideStatus;
+
   @Field()
-  status: string;
+  isFromGIU: boolean;
+
+  @Field()
+  isToGIU: boolean;
+
+  @Field({ nullable: true })
+  bookingDeadline?: Date;
 
   @Field()
   createdAt: Date;
