@@ -38,6 +38,15 @@ export class UsersService {
     return user;
   }
 
+  // ✅ Get a user by ID
+  async findById(id: string): Promise<User> {
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${id} not found`);
+    }
+    return user;
+  }
+
   // ✅ Update a user
   async update(universityId: number, input: UpdateUserInput) {
     // Remove phoneNumber from input as it's not in the User model

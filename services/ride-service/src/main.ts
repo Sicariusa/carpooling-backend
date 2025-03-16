@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { connectConsumer, startConsumer } from './utils/kafka';
+import axios from 'axios';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -9,19 +10,37 @@ async function bootstrap() {
   // ✅ Enable validation pipes
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true,
       whitelist: true,
+      transform: true,
       forbidNonWhitelisted: true,
-      transformOptions: { enableImplicitConversion: true },
+      disableErrorMessages: false,
     }),
   );
 
   // ✅ Enable CORS
-  app.enableCors();
+  app.enableCors({
+    origin: '*', // In production, specify your frontend URL
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+  });
 
   // ✅ Start Kafka Consumer
   await connectConsumer();
   await startConsumer();
+
+  // Add axios interceptor for debugging API calls to user service
+  axios.interceptors.request.use(request => {
+    console.log('Starting Request to User Service:', request.method, request.url);
+    return request;
+  });
+
+  axios.interceptors.response.use(response => {
+    console.log('Response from User Service:', response.status);
+    return response;
+  }, error => {
+    console.error('Error in User Service request:', error.message);
+    return Promise.reject(error);
+  });
 
   // ✅ Start the server
   const port = process.env.PORT ?? 3002;

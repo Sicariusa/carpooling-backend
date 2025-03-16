@@ -8,6 +8,7 @@ import { AppController } from 'src/app.controller';
 import { AppService } from 'src/app.service';
 import { BookingModule } from './modules/booking.module';
 import { PrismaService } from './services/prisma.service';
+import { MiddlewareModule } from './middleware/middleware.module';
 
 
 @Module({
@@ -16,8 +17,10 @@ import { PrismaService } from './services/prisma.service';
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'), // Generate schema file
       playground: true, // Enable GraphQL Playground
+      context: ({ req }) => ({ req }), // Pass request object to context
     }),
     BookingModule,
+    MiddlewareModule,
   ],
   controllers: [AppController],
   providers: [AppService, PrismaService],
