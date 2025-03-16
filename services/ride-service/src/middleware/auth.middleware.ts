@@ -24,7 +24,7 @@ export class AuthMiddleware implements NestMiddleware {
 
       try {
         // Call the user service to validate the token
-        const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3001';
+        const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3000';
         const response = await axios.get(`${userServiceUrl}/auth/validate`, {
           params: { token }
         });

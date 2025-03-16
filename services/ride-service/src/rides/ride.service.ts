@@ -152,25 +152,4 @@ export class RideService implements OnModuleInit {
     });
   }
 
-  // // ✅ Notify driver about booking
-  // async notifyDriver(rideId: string, action: 'booked' | 'cancelled' | 'accepted' | 'rejected', passengerId: string) {
-  //   const ride = await this.getRideById(rideId);
-    
-  //   try {
-  //     // Send notification via Kafka
-  //     await produceMessage('driver-notifications', {
-  //       driverId: ride.driverId,
-  //       rideId: rideId,
-  //       action: action,
-  //       passengerId: passengerId,
-  //       timestamp: new Date().toISOString(),
-  //     });
-      
-  //     this.logger.log(`Notification sent to driver ${ride.driverId} about ${action} ride ${rideId}`);
-  //     return true;
-  //   } catch (error) {
-  //     this.logger.error(`Failed to send notification to driver: ${error.message}`);
-  //     return false;
-  //   }
-  // }
 }

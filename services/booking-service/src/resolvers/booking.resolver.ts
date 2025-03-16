@@ -91,7 +91,10 @@ export class BookingResolver {
     // Set the userId from the authenticated user
     data.userId = user.id;
     
-    return this.bookingService.BookRide(data);
+    // Get the auth token from the request
+    const token = context.req.headers.authorization?.split(' ')[1];
+    
+    return this.bookingService.BookRide(data, token);
   }
 
   @Mutation(() => Booking)
@@ -121,7 +124,10 @@ export class BookingResolver {
       throw new UnauthorizedException('You must be logged in to cancel a booking');
     }
     
-    return this.bookingService.cancelBooking(id, user.id);
+    // Get the auth token from the request
+    const token = context.req.headers.authorization?.split(' ')[1];
+    
+    return this.bookingService.cancelBooking(id, user.id, token);
   }
 
   @Mutation(() => Booking)
@@ -134,7 +140,10 @@ export class BookingResolver {
       throw new UnauthorizedException('You must be logged in to accept a booking');
     }
     
-    return this.bookingService.acceptBooking(id, user.id);
+    // Get the auth token from the request
+    const token = context.req.headers.authorization?.split(' ')[1];
+    
+    return this.bookingService.acceptBooking(id, user.id, token);
   }
 
   @Mutation(() => Booking)
@@ -147,7 +156,10 @@ export class BookingResolver {
       throw new UnauthorizedException('You must be logged in to reject a booking');
     }
     
-    return this.bookingService.rejectBooking(id, user.id);
+    // Get the auth token from the request
+    const token = context.req.headers.authorization?.split(' ')[1];
+    
+    return this.bookingService.rejectBooking(id, user.id, token);
   }
 
   @Mutation(() => Booking)
