@@ -9,7 +9,7 @@ datasource db {
 
 model Ride {
   id              String   @id @default(uuid())
-  driverId        String   @db.Uuid  // Foreign Key to User (Driver)
+  driverId        String   
   origin          String
   destination     String
   departure       DateTime
@@ -20,9 +20,7 @@ model Ride {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  // Relations (will do later)
- // driver          User     @relation(fields: [driverId], references: [id])
-
+  @@index([driverId])  // Index to optimize queries based on driver ID
   @@index([origin, destination])  // Index for faster ride searches
 }
 

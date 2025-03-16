@@ -17,14 +17,14 @@ export class Ride {
   @Field()
   departure: Date;
 
+  @Field()
+  seatsAvailable: number;  
+
   @Field(() => Float)
   price: number;
 
   @Field()
   isGirlsOnly: boolean;
-
-  @Field()
-  status: string;
 
   @Field()
   createdAt: Date;

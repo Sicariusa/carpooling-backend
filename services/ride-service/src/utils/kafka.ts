@@ -12,6 +12,9 @@ export const consumer = kafka.consumer({ groupId: "ride-group" });
 
 let isConsumerInitialized = false;
 
+// ✅ Store verified users in memory (or use Redis for persistence)
+const verifiedUsers = new Set<string>();
+
 /**
  * Connects and subscribes to Kafka topics.
  */
@@ -24,7 +27,7 @@ export async function connectConsumer() {
   try {
     await consumer.connect();
     await consumer.subscribe({ topic: "user-events", fromBeginning: true });
-    
+
     logger.log('✅ Kafka Consumer Connected and Subscribed to user-events');
     isConsumerInitialized = true;
   } catch (error) {
@@ -70,16 +73,26 @@ export async function startConsumer() {
  * @param event - The parsed Kafka event message
  */
 function handleKafkaEvent(event: any) {
-  switch (event.type) {
+  const eventType = event.type || event.event;  // ✅ Handle both formats
+
+  switch (eventType) {
     case 'USER_VERIFIED':
       logger.log(`✅ User verified: ${event.userId}`);
-      // Example: Store user verification status in a cache or DB
+      verifiedUsers.add(event.userId.toString()); // ✅ Ensure it's stored as a string
       break;
 
     default:
-      logger.warn(`⚠️ Unknown event type: ${event.type || event.event}`);
+      logger.warn(`⚠️ Unknown event type: ${eventType}`);
       break;
   }
+}
+/**
+ * Checks if a user is verified before creating a ride.
+ * @param userId - The ID of the user (driver)
+ */
+export function isUserVerified(userId: string): boolean {
+  logger.log(`✅ Users verified: ${verifiedUsers}`);
+  return verifiedUsers.has(userId);
 }
 
 /**

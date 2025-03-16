@@ -1,34 +1,45 @@
 import { Resolver, Query, Mutation, Args } from "@nestjs/graphql";
-import { RideService } from './ride.service';
-import { Ride } from './ride.model'; // Import the Ride type from Prisma client
-import { CreateRideInput, UpdateRideInput } from './dto/ride.dto'; // Import the DTOs
+import { RideService } from "./ride.service";
+import { Ride } from "./ride.model";
+import { CreateRideInput, UpdateRideInput } from "./dto/ride.dto";
 
 @Resolver(() => Ride)
 export class RideResolver {
   constructor(private readonly rideService: RideService) {}
 
+  // ✅ Get all rides (optionally filter for girls-only rides)
   @Query(() => [Ride])
-  async getAllRides() {
-    return this.rideService.getAllRides();
+  async getAllRides(@Args("girlsOnly", { nullable: true }) girlsOnly?: boolean) {
+    return this.rideService.getAllRides(girlsOnly);
   }
 
-  @Query(() => Ride)
-  async getRideById(@Args('id') id: string) {
-    return this.rideService.getRideById(id);
+  // ✅ Search for rides going to GIU
+  @Query(() => [Ride])
+  async searchRidesGoingToGIU() {
+    return this.rideService.searchRidesGoingToGIU();
   }
 
+  // ✅ Search for rides leaving from GIU
+  @Query(() => [Ride])
+  async searchRidesLeavingGIU() {
+    return this.rideService.searchRidesLeavingGIU();
+  }
+
+  // ✅ Create a ride (validates GIU rule)
   @Mutation(() => Ride)
-  async createRide(@Args('data') data: CreateRideInput) {
+  async createRide(@Args("data") data: CreateRideInput) {
     return this.rideService.createRide(data);
   }
 
+  // ✅ Update a ride
   @Mutation(() => Ride)
-  async updateRide(@Args('id') id: string, @Args('data') data: UpdateRideInput) {
+  async updateRide(@Args("id") id: string, @Args("data") data: UpdateRideInput) {
     return this.rideService.updateRide(id, data);
   }
 
+  // ✅ Delete a ride
   @Mutation(() => Ride)
-  async deleteRide(@Args('id') id: string) {
+  async deleteRide(@Args("id") id: string) {
     return this.rideService.deleteRide(id);
   }
 }
