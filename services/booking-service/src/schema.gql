@@ -6,12 +6,20 @@ type Booking {
   id: ID!
   userId: ID!
   passengerId: ID!
-  rideId: ID
-  status: String!
+  rideId: ID!
+  status: BookingStatus!
   pickupLocation: String!
   dropoffLocation: String!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""Status of a booking"""
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REJECTED
 }
 
 """
@@ -20,27 +28,22 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 scalar DateTime
 
 type Query {
-  bookings: [Booking!]!
-  booking(id: ID!): Booking!
+  AllBookings: [Booking!]!
+  getBooking(id: ID!): Booking!
 }
 
 type Mutation {
-  createBooking(data: CreateBookingInput!): Booking!
-  updateBooking(data: UpdateBookingInput!): Booking!
-  deleteBooking(id: ID!): Booking!
+  BookRide(data: CreateBookingInput!): Booking!
+  cancelBooking(id: ID!): Booking!
+  acceptBooking(id: ID!): Booking!
+  rejectBooking(id: ID!): Booking!
 }
 
 input CreateBookingInput {
   userId: ID!
   passengerId: ID
+  rideId: ID!
   pickupLocation: String!
   dropoffLocation: String!
-  status: String
-}
-
-input UpdateBookingInput {
-  id: ID!
-  status: String
-  pickupLocation: String
-  dropoffLocation: String
+  status: BookingStatus
 }

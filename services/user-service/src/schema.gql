@@ -32,6 +32,7 @@ type Mutation {
 type Query {
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
+  validateToken(token: String!): TokenValidationResponse!
 }
 
 """User roles"""
@@ -39,6 +40,12 @@ enum Role {
   ADMIN
   DRIVER
   PASSENGER
+}
+
+type TokenValidationResponse {
+  error: String
+  isValid: Boolean!
+  user: UserInfo
 }
 
 input UpdateUserInput {
@@ -58,4 +65,12 @@ type User {
   role: String!
   universityId: Int!
   updatedAt: DateTime!
+}
+
+type UserInfo {
+  email: String!
+  id: String!
+  phoneNumber: Int
+  role: String!
+  universityId: Int!
 }

@@ -1,4 +1,5 @@
-import { ObjectType, Field, Int, ID } from '@nestjs/graphql';
+import { ObjectType, Field, Int, ID, registerEnumType } from '@nestjs/graphql';
+import { BookingStatus } from '../dto/booking.dto';
 
 @ObjectType()
 export class Booking {
@@ -11,11 +12,11 @@ export class Booking {
   @Field(() => ID)
   passengerId: string;
 
-  @Field(() => ID, { nullable: true })
-  rideId?: string;
+  @Field(() => ID)
+  rideId: string;
 
-  @Field()
-  status: string;
+  @Field(() => BookingStatus)
+  status: BookingStatus;
 
   @Field()
   pickupLocation: string;
