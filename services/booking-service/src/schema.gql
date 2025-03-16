@@ -42,7 +42,7 @@ input BookingFilterInput {
 }
 
 type Mutation {
-  createBooking(data: CreateBookingInput!): Booking!
+  BookRide(data: CreateBookingInput!): Booking!
   updateBooking(data: UpdateBookingInput!): Booking!
   cancelBooking(id: ID!, userId: ID!): Booking!
   acceptBooking(id: ID!, driverId: ID!): Booking!

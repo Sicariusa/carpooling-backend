@@ -26,7 +26,7 @@ export class BookingService implements OnModuleInit {
     return { userId, timestamp: new Date() };
   }
 
-  async createBooking(data: CreateBookingInput): Promise<Booking> {
+  async BookRide(data: CreateBookingInput): Promise<Booking> {
     // Set passengerId to userId if not provided
     if (!data.passengerId) {
       data.passengerId = data.userId;

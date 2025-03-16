@@ -33,8 +33,8 @@ export class BookingResolver {
   }
 
   @Mutation(() => Booking)
-  async createBooking(@Args('data') data: CreateBookingInput) {
-    return this.bookingService.createBooking(data);
+  async BookRide(@Args('data') data: CreateBookingInput) {
+    return this.bookingService.BookRide(data);
   }
 
   @Mutation(() => Booking)
