@@ -60,7 +60,7 @@ model Ride {
   price          Float
   isGirlsOnly    Boolean   @default(false)
   status         String
-  bookings       Booking[]
+ 
   // Add other fields that you need to reference from the ride service
   // These won't be stored in the booking-service database
 }

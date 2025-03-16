@@ -33,5 +33,6 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`🚀 Ride-Service running on: ${await app.getUrl()}`);
   console.log(`📌 GraphQL Playground: http://localhost:${port}/graphql`);
+ 
 }
 bootstrap();

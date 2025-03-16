@@ -141,31 +141,42 @@ export class RideService implements OnModuleInit {
   async updateAvailableSeats(rideId: string, change: number) {
     const ride = await this.getRideById(rideId);
     
+    this.logger.log(`Updating seats for ride ${rideId}: current=${ride.seatsAvailable}, change=${change}`);
+    
     const newSeatsAvailable = ride.seatsAvailable + change;
     if (newSeatsAvailable < 0) {
-      throw new BadRequestException('Not enough seats available');
+      this.logger.warn(`Cannot update seats: ${ride.seatsAvailable} + ${change} would result in negative seats`);
+      throw new BadRequestException(`Not enough seats available (current: ${ride.seatsAvailable})`);
     }
     
-    return this.prisma.ride.update({
+    const updatedRide = await this.prisma.ride.update({
       where: { id: rideId },
       data: { seatsAvailable: newSeatsAvailable },
     });
+    
+    this.logger.log(`Seats updated for ride ${rideId}: ${ride.seatsAvailable} -> ${updatedRide.seatsAvailable}`);
+    return updatedRide;
   }
 
   // // ✅ Notify driver about booking
-  // async notifyDriver(rideId: string, action: 'booked' | 'cancelled', passengerId: string) {
+  // async notifyDriver(rideId: string, action: 'booked' | 'cancelled' | 'accepted' | 'rejected', passengerId: string) {
   //   const ride = await this.getRideById(rideId);
     
-  //   // Send notification via Kafka
-  //   await produceMessage('driver-notifications', {
-  //     driverId: ride.driverId,
-  //     rideId: rideId,
-  //     action: action,
-  //     passengerId: passengerId,
-  //     timestamp: new Date().toISOString(),
-  //   });
-    
-  //   this.logger.log(`Notification sent to driver ${ride.driverId} about ${action} ride ${rideId}`);
-  //   return true;
+  //   try {
+  //     // Send notification via Kafka
+  //     await produceMessage('driver-notifications', {
+  //       driverId: ride.driverId,
+  //       rideId: rideId,
+  //       action: action,
+  //       passengerId: passengerId,
+  //       timestamp: new Date().toISOString(),
+  //     });
+      
+  //     this.logger.log(`Notification sent to driver ${ride.driverId} about ${action} ride ${rideId}`);
+  //     return true;
+  //   } catch (error) {
+  //     this.logger.error(`Failed to send notification to driver: ${error.message}`);
+  //     return false;
+  //   }
   // }
 }

@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, OnModuleInit, BadRequestException, Forbi
 import { CreateBookingInput, UpdateBookingInput, BookingFilterInput, BookingStatus } from '../dto/booking.dto';
 import { PrismaService } from './prisma.service';
 import { connectConsumer, startConsumer, produceMessage } from '../utils/kafka';
+import { Booking } from '@prisma/client';
 
 @Injectable()
 export class BookingService implements OnModuleInit {
@@ -25,97 +26,96 @@ export class BookingService implements OnModuleInit {
     return { userId, timestamp: new Date() };
   }
 
-  async createBooking(data: CreateBookingInput) {
+  async createBooking(data: CreateBookingInput): Promise<Booking> {
+    // Set passengerId to userId if not provided
+    if (!data.passengerId) {
+      data.passengerId = data.userId;
+    }
+    
+    // First check if the ride exists and has available seats
     try {
-      // If passengerId is not provided, use userId as the passengerId
-      const passengerId = data.passengerId || data.userId;
+      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
+      console.log(`Checking available seats for ride ${data.rideId} at ${rideServiceUrl}`);
       
-      // First, try to create a mock user if it doesn't exist
-      try {
-        await this.prisma.user.upsert({
-          where: { id: data.userId },
-          update: {},
-          create: {
-            id: data.userId,
-            email: `test-${data.userId}@example.com`,
-            firstName: 'Test',
-            lastName: 'User',
-          },
+      const rideResponse = await fetch(`${rideServiceUrl}/rides/${data.rideId}`)
+        .catch(error => {
+          console.error(`Network error fetching ride: ${error.message}`);
+          return null;
         });
-      } catch (error) {
-        // User might already exist, ignore the error
-        console.log('User might already exist:', error.message);
-      }
-
-      // Check if the ride exists and has available seats
-      try {
-        // Use fetch instead of axios
-        const rideResponse = await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${data.rideId}`);
-        
-        if (!rideResponse.ok) {
-          if (rideResponse.status === 404) {
-            throw new NotFoundException(`Ride with ID ${data.rideId} not found`);
-          }
-          throw new Error(`Failed to fetch ride: ${rideResponse.statusText}`);
-        }
-        
+      
+      if (rideResponse && rideResponse.ok) {
         const ride = await rideResponse.json();
         
+        // Check if there are seats available
         if (ride.seatsAvailable <= 0) {
           throw new BadRequestException('No seats available for this ride');
         }
-
-        if (ride.isGirlsOnly) {
-          // In a real app, you would check the user's gender from the user service
-          // For now, we'll assume all users can book any ride
-          console.log('This is a girls-only ride. In a real app, we would check the user gender.');
-        }
-
-        // Check if the booking deadline has passed
-        if (ride.bookingDeadline && new Date(ride.bookingDeadline) < new Date()) {
-          throw new BadRequestException('Booking deadline has passed for this ride');
-        }
-
-        // Update available seats in the ride service
-        const updateResponse = await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${data.rideId}/seats`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ change: -1 }), // Decrease available seats by 1
-        });
         
-        if (!updateResponse.ok) {
-          throw new Error(`Failed to update seats: ${updateResponse.statusText}`);
-        }
-      } catch (error) {
-        if (error instanceof NotFoundException || error instanceof BadRequestException) {
-          throw error;
-        }
-        console.error('Error checking ride:', error);
-        throw new Error(`Failed to process booking: ${error.message}`);
+        console.log(`Ride has ${ride.seatsAvailable} seats available`);
       }
-      
-      // Now create the booking
-      const booking = await this.prisma.booking.create({
-        data: {
-          userId: data.userId,
-          passengerId: passengerId,
-          rideId: data.rideId,
-          status: data.status || BookingStatus.PENDING,
-          pickupLocation: data.pickupLocation,
-          dropoffLocation: data.dropoffLocation,
-        },
-      });
-
-      // Notify the driver about the new booking
-      await this.notifyDriver(data.rideId, 'booked', passengerId);
-      
-      return booking;
     } catch (error) {
-      console.error('Error creating booking:', error);
-      throw error;
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      console.warn(`Error checking ride seats: ${error.message}`);
+      // Continue with booking creation even if seat check fails
     }
+    
+    // Create the booking
+    const booking = await this.prisma.booking.create({
+      data: {
+        userId: data.userId,
+        passengerId: data.passengerId,
+        rideId: data.rideId,
+        status: data.status || BookingStatus.PENDING,
+        pickupLocation: data.pickupLocation,
+        dropoffLocation: data.dropoffLocation,
+      },
+    });
+    
+    // Try to update available seats in the ride service
+    try {
+      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
+      console.log(`Attempting to update seats for ride ${data.rideId} at ${rideServiceUrl}`);
+      
+      const response = await fetch(`${rideServiceUrl}/rides/${data.rideId}/seats`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ change: -1 }), // Decrease available seats by 1
+      }).catch(error => {
+        console.error(`Network error updating ride seats: ${error.message}`);
+        return null;
+      });
+      
+      if (!response) {
+        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${data.rideId}/seats`);
+      } else if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.warn(`Failed to update seats for ride ${data.rideId}: Status ${response.status} - ${errorText}`);
+        
+        // If the error is due to no seats available, delete the booking and throw an error
+        if (response.status === 400 && errorText.includes('Not enough seats available')) {
+          // Delete the booking we just created
+          await this.prisma.booking.delete({ where: { id: booking.id } });
+          throw new BadRequestException('No seats available for this ride');
+        }
+      } else {
+        console.log(`Successfully updated seats for ride ${data.rideId}`);
+      }
+    } catch (error) {
+      console.error(`Error updating ride seats: ${error.message}`);
+    }
+    
+    // // Try to notify the driver
+    // try {
+    //   await this.notifyDriver(data.rideId, 'booked', data.passengerId);
+    // } catch (error) {
+    //   console.error(`Error notifying driver: ${error.message}`);
+    // }
+    
+    return booking;
   }
 
   async getBookingById(id: string) {
@@ -164,10 +164,19 @@ export class BookingService implements OnModuleInit {
     
     // Check if the booking can be cancelled (deadline not passed)
     try {
-      // Use fetch instead of axios
-      const rideResponse = await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${booking.rideId}`);
+      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
+      console.log(`Checking ride ${booking.rideId} for cancellation at ${rideServiceUrl}`);
       
-      if (rideResponse.ok) {
+      // Use fetch instead of axios
+      const rideResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}`)
+        .catch(error => {
+          console.error(`Network error fetching ride: ${error.message}`);
+          return null;
+        });
+      
+      if (!rideResponse) {
+        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${booking.rideId}`);
+      } else if (rideResponse.ok) {
         const ride = await rideResponse.json();
         
         if (ride.bookingDeadline && new Date(ride.bookingDeadline) < new Date()) {
@@ -175,16 +184,29 @@ export class BookingService implements OnModuleInit {
         }
         
         // Update available seats in the ride service
-        await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${booking.rideId}/seats`, {
+        const seatResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}/seats`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ change: 1 }), // Increase available seats by 1
+        }).catch(error => {
+          console.error(`Network error updating ride seats: ${error.message}`);
+          return null;
         });
+        
+        if (!seatResponse) {
+          console.warn(`Failed to connect to ride service for seat update at ${rideServiceUrl}/rides/${booking.rideId}/seats`);
+        } else if (!seatResponse.ok) {
+          const errorText = await seatResponse.text().catch(() => 'Unknown error');
+          console.warn(`Failed to update seats for ride ${booking.rideId}: Status ${seatResponse.status} - ${errorText}`);
+        } else {
+          console.log(`Successfully updated seats for ride ${booking.rideId}`);
+        }
       } else if (rideResponse.status !== 404) {
-        // If it's not a 404, throw an error
-        throw new Error(`Failed to fetch ride: ${rideResponse.statusText}`);
+        // If it's not a 404, log the error
+        const errorText = await rideResponse.text().catch(() => 'Unknown error');
+        console.warn(`Failed to fetch ride ${booking.rideId}: Status ${rideResponse.status} - ${errorText}`);
       } else {
         console.log(`Ride with ID ${booking.rideId} not found, but proceeding with cancellation`);
       }
@@ -202,8 +224,8 @@ export class BookingService implements OnModuleInit {
       data: { status: BookingStatus.CANCELLED },
     });
     
-    // Notify the driver about the cancellation
-    await this.notifyDriver(booking.rideId, 'cancelled', booking.passengerId);
+    // // Notify the driver about the cancellation
+    // await this.notifyDriver(booking.rideId, 'cancelled', booking.passengerId);
     
     return updatedBooking;
   }
@@ -213,27 +235,37 @@ export class BookingService implements OnModuleInit {
     
     // Check if the booking is for a ride owned by the driver
     try {
+      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
+      console.log(`Checking ride ${booking.rideId} for acceptance at ${rideServiceUrl}`);
+      
       // Use fetch instead of axios
-      const rideResponse = await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${booking.rideId}`);
+      const rideResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}`)
+        .catch(error => {
+          console.error(`Network error fetching ride: ${error.message}`);
+          return null;
+        });
       
-      if (!rideResponse.ok) {
-        if (rideResponse.status === 404) {
-          throw new NotFoundException(`Ride with ID ${booking.rideId} not found`);
+      if (!rideResponse) {
+        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${booking.rideId}`);
+      } else if (rideResponse.ok) {
+        const ride = await rideResponse.json();
+        
+        if (ride.driverId !== driverId) {
+          throw new ForbiddenException('You can only accept bookings for your own rides');
         }
-        throw new Error(`Failed to fetch ride: ${rideResponse.statusText}`);
-      }
-      
-      const ride = await rideResponse.json();
-      
-      if (ride.driverId !== driverId) {
-        throw new ForbiddenException('You can only accept bookings for your own rides');
+      } else if (rideResponse.status !== 404) {
+        // If it's not a 404, log the error
+        const errorText = await rideResponse.text().catch(() => 'Unknown error');
+        console.warn(`Failed to fetch ride ${booking.rideId}: Status ${rideResponse.status} - ${errorText}`);
+      } else {
+        console.log(`Ride with ID ${booking.rideId} not found, but proceeding with acceptance`);
       }
     } catch (error) {
-      if (error instanceof NotFoundException || error instanceof ForbiddenException) {
+      if (error instanceof ForbiddenException) {
         throw error;
       }
+      // For other errors, log but continue with acceptance
       console.error('Error checking ride for acceptance:', error);
-      throw new Error(`Failed to process booking acceptance: ${error.message}`);
     }
     
     // Update booking status to confirmed
@@ -248,10 +280,19 @@ export class BookingService implements OnModuleInit {
     
     // Check if the booking is for a ride owned by the driver
     try {
-      // Use fetch instead of axios
-      const rideResponse = await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${booking.rideId}`);
+      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
+      console.log(`Checking ride ${booking.rideId} for rejection at ${rideServiceUrl}`);
       
-      if (rideResponse.ok) {
+      // Use fetch instead of axios
+      const rideResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}`)
+        .catch(error => {
+          console.error(`Network error fetching ride: ${error.message}`);
+          return null;
+        });
+      
+      if (!rideResponse) {
+        console.warn(`Failed to connect to ride service at ${rideServiceUrl}/rides/${booking.rideId}`);
+      } else if (rideResponse.ok) {
         const ride = await rideResponse.json();
         
         if (ride.driverId !== driverId) {
@@ -259,16 +300,29 @@ export class BookingService implements OnModuleInit {
         }
         
         // Update available seats in the ride service
-        await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${booking.rideId}/seats`, {
+        const seatResponse = await fetch(`${rideServiceUrl}/rides/${booking.rideId}/seats`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ change: 1 }), // Increase available seats by 1
+        }).catch(error => {
+          console.error(`Network error updating ride seats: ${error.message}`);
+          return null;
         });
+        
+        if (!seatResponse) {
+          console.warn(`Failed to connect to ride service for seat update at ${rideServiceUrl}/rides/${booking.rideId}/seats`);
+        } else if (!seatResponse.ok) {
+          const errorText = await seatResponse.text().catch(() => 'Unknown error');
+          console.warn(`Failed to update seats for ride ${booking.rideId}: Status ${seatResponse.status} - ${errorText}`);
+        } else {
+          console.log(`Successfully updated seats for ride ${booking.rideId}`);
+        }
       } else if (rideResponse.status !== 404) {
-        // If it's not a 404, throw an error
-        throw new Error(`Failed to fetch ride: ${rideResponse.statusText}`);
+        // If it's not a 404, log the error
+        const errorText = await rideResponse.text().catch(() => 'Unknown error');
+        console.warn(`Failed to fetch ride ${booking.rideId}: Status ${rideResponse.status} - ${errorText}`);
       } else {
         console.log(`Ride with ID ${booking.rideId} not found, but proceeding with rejection`);
       }
@@ -326,30 +380,30 @@ export class BookingService implements OnModuleInit {
     });
   }
 
-  // Helper method to notify driver via Kafka
-  private async notifyDriver(rideId: string, action: 'booked' | 'cancelled', passengerId: string) {
-    try {
-      // Get ride details to get the driver ID
-      const rideResponse = await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${rideId}`);
+  // // Helper method to notify driver via Kafka
+  // private async notifyDriver(rideId: string, action: 'booked' | 'cancelled', passengerId: string) {
+  //   try {
+  //     // Get ride details to get the driver ID
+  //     const rideResponse = await fetch(`${process.env.RIDE_SERVICE_URL}/rides/${rideId}`);
       
-      if (!rideResponse.ok) {
-        throw new Error(`Failed to fetch ride: ${rideResponse.statusText}`);
-      }
+  //     if (!rideResponse.ok) {
+  //       throw new Error(`Failed to fetch ride: ${rideResponse.statusText}`);
+  //     }
       
-      const ride = await rideResponse.json();
+  //     const ride = await rideResponse.json();
       
-      // Send notification via Kafka
-      await produceMessage('driver-notifications', {
-        driverId: ride.driverId,
-        rideId: rideId,
-        action: action,
-        passengerId: passengerId,
-        timestamp: new Date().toISOString(),
-      });
+  //     // Send notification via Kafka
+  //     await produceMessage('driver-notifications', {
+  //       driverId: ride.driverId,
+  //       rideId: rideId,
+  //       action: action,
+  //       passengerId: passengerId,
+  //       timestamp: new Date().toISOString(),
+  //     });
       
-      console.log(`Notification sent to driver ${ride.driverId} about ${action} ride ${rideId}`);
-    } catch (error) {
-      console.error('Failed to notify driver:', error);
-    }
-  }
+  //     console.log(`Notification sent to driver ${ride.driverId} about ${action} ride ${rideId}`);
+  //   } catch (error) {
+  //     console.error('Failed to notify driver:', error);
+  //   }
+  // }
 }
