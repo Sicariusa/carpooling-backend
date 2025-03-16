@@ -9,7 +9,7 @@ export class BookingResolver {
   constructor(private readonly bookingService: BookingService) {}
 
   @Query(() => [Booking])
-  async bookings(@Context() context) {
+  async AllBookings(@Context() context) {
     const user = context.req.user;
     if (!user) {
       throw new UnauthorizedException('You must be logged in to view bookings');
@@ -25,7 +25,7 @@ export class BookingResolver {
   }
 
   @Query(() => Booking)
-  async booking(@Args('id', { type: () => ID }) id: string, @Context() context) {
+  async UserBooking(@Args('id', { type: () => ID }) id: string, @Context() context) {
     const user = context.req.user;
     if (!user) {
       throw new UnauthorizedException('You must be logged in to view a booking');
@@ -82,7 +82,7 @@ export class BookingResolver {
   }
 
   @Mutation(() => Booking)
-  async createBooking(@Args('data') data: CreateBookingInput, @Context() context) {
+  async BookRide(@Args('data') data: CreateBookingInput, @Context() context) {
     const user = context.req.user;
     if (!user) {
       throw new UnauthorizedException('You must be logged in to book a ride');

@@ -36,7 +36,7 @@ type Query {
   getAllRides: [Ride!]!
   getRideById(id: String!): Ride!
   searchRides(searchParams: SearchRideInput!): [Ride!]!
-  getDriverRides(driverId: String!): [Ride!]!
+  getDriverRides: [Ride!]!
 }
 
 input SearchRideInput {

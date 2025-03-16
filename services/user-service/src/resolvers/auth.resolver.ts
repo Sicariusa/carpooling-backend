@@ -15,18 +15,6 @@ export class LoginResponse {
 }
 
 @ObjectType()
-export class TokenValidationResponse {
-  @Field()
-  isValid: boolean;
-
-  @Field({ nullable: true })
-  error?: string;
-
-  @Field(() => UserInfo, { nullable: true })
-  user?: UserInfo;
-}
-
-@ObjectType()
 export class UserInfo {
   @Field()
   id: string;
@@ -42,6 +30,18 @@ export class UserInfo {
 
   @Field(() => Int, { nullable: true })
   phoneNumber?: number;
+}
+
+@ObjectType()
+export class TokenValidationResponse {
+  @Field()
+  isValid: boolean;
+
+  @Field({ nullable: true })
+  error?: string;
+
+  @Field(() => UserInfo, { nullable: true })
+  user?: UserInfo;
 }
 
 @Resolver()
