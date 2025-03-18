@@ -19,7 +19,7 @@ let isProducerInitialized = false;
  */
 export async function connectConsumer() {
   if (isConsumerInitialized) {
-    logger.warn("⚠️ Kafka Consumer is already initialized. Skipping subscription.");
+    logger.warn("Kafka Consumer is already initialized. Skipping subscription.");
     return;
   }
 
@@ -28,10 +28,10 @@ export async function connectConsumer() {
     await consumer.subscribe({ topic: "user-events", fromBeginning: true });
     await consumer.subscribe({ topic: "booking-events", fromBeginning: true });
     
-    logger.log('✅ Kafka Consumer Connected and Subscribed to required topics');
+    logger.log('Kafka Consumer Connected and Subscribed to required topics');
     isConsumerInitialized = true;
   } catch (error) {
-    logger.error(`❌ Failed to connect Kafka consumer: ${error.message}`);
+    logger.error(`Failed to connect Kafka consumer: ${error.message}`);
     throw error;
   }
 }
@@ -47,10 +47,10 @@ export async function connectProducer() {
 
   try {
     await producer.connect();
-    logger.log('✅ Kafka Producer Connected');
+    logger.log('Kafka Producer Connected');
     isProducerInitialized = true;
   } catch (error) {
-    logger.error(`❌ Failed to connect Kafka producer: ${error.message}`);
+    logger.error(`Failed to connect Kafka producer: ${error.message}`);
     throw error;
   }
 }
@@ -95,35 +95,35 @@ export async function startConsumer(rideService) {
 function handleKafkaEvent(event: any, rideService: any) {
   switch (event.type) {
     case 'USER_VERIFIED':
-      logger.log(`✅ User verified: ${event.userId}`);
+      logger.log(`User verified: ${event.userId}`);
       // Example: Store user verification status in a cache or DB
       break;
       
     case 'BOOKING_CREATED':
-      logger.log(`✅ Booking created: ${event.bookingId} for ride: ${event.rideId}`);
+      logger.log(`Booking created: ${event.bookingId} for ride: ${event.rideId}`);
       // Check if seats are available and update ride status if needed
       rideService.verifyRideBooking(event.rideId, event.bookingId);
       break;
       
     case 'BOOKING_CANCELLED':
-      logger.log(`✅ Booking cancelled: ${event.bookingId} for ride: ${event.rideId}`);
+      logger.log(`Booking cancelled: ${event.bookingId} for ride: ${event.rideId}`);
       // Increase available seats
       rideService.handleBookingCancellation(event.rideId);
       break;
       
     case 'BOOKING_ACCEPTED':
-      logger.log(`✅ Booking accepted: ${event.bookingId} for ride: ${event.rideId}`);
+      logger.log(`Booking accepted: ${event.bookingId} for ride: ${event.rideId}`);
       // Decrease available seats
       rideService.handleBookingAccepted(event.rideId);
       break;
       
     case 'BOOKING_REJECTED':
-      logger.log(`✅ Booking rejected: ${event.bookingId} for ride: ${event.rideId}`);
+      logger.log(`Booking rejected: ${event.bookingId} for ride: ${event.rideId}`);
       // No need to update seats as they weren't reserved yet
       break;
 
     default:
-      logger.warn(`⚠️ Unknown event type: ${event.type || event.event}`);
+      logger.warn(`Unknown event type: ${event.type || event.event}`);
       break;
   }
 }
@@ -145,10 +145,10 @@ export async function produceMessage(topic: string, message: any) {
         { value: JSON.stringify(message) },
       ],
     });
-    logger.log(`📤 Produced message to ${topic}: ${JSON.stringify(message)}`);
+    logger.log(`Produced message to ${topic}: ${JSON.stringify(message)}`);
     return true;
   } catch (error) {
-    logger.error(`❌ Error producing message to ${topic}: ${error.message}`);
+    logger.error(`Error producing message to ${topic}: ${error.message}`);
     return false;
   }
 }
@@ -160,16 +160,16 @@ export async function disconnectKafka() {
   try {
     if (isConsumerInitialized) {
       await consumer.disconnect();
-      logger.log('🔌 Kafka Consumer Disconnected');
+      logger.log('Kafka Consumer Disconnected');
       isConsumerInitialized = false;
     }
     
     if (isProducerInitialized) {
       await producer.disconnect();
-      logger.log('🔌 Kafka Producer Disconnected');
+      logger.log('Kafka Producer Disconnected');
       isProducerInitialized = false;
     }
   } catch (error) {
-    logger.error(`❌ Failed to disconnect Kafka: ${error.message}`);
+    logger.error(`Failed to disconnect Kafka: ${error.message}`);
   }
 }
