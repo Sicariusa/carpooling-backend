@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException, OnModuleInit, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { CreateBookingInput, BookingStatus } from '../dto/booking.dto';
 import { PrismaService } from './prisma.service';
-import { connectConsumer, startConsumer } from '../utils/kafka';
+import { connectConsumer, startConsumer, produceMessage } from '../utils/kafka';
 import { Booking } from '@prisma/client';
 
 const logger = new Logger('BookingService');
+
+// Map to track pending bookings waiting for verification
+const pendingVerifications = new Map();
   
 @Injectable()
 export class BookingService implements OnModuleInit {
@@ -24,28 +27,7 @@ export class BookingService implements OnModuleInit {
     if (!data.passengerId) data.passengerId = data.userId;
     
     try {
-      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      const headers = { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) };
-      
-      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          query: `query { getRideById(id: "${data.rideId}") { id seatsAvailable } }`
-        }),
-      }).catch(error => null);
-      
-      if (!rideResponse?.ok) throw new BadRequestException('Failed to verify ride details');
-      
-      const result = await rideResponse.json();
-      if (result.errors) {
-        throw new BadRequestException(`Failed to verify ride: ${result.errors[0]?.message || 'Unknown error'}`);
-      }
-      
-      if (result.data?.getRideById?.seatsAvailable <= 0) {
-        throw new BadRequestException('No seats available for this ride');
-      }
-      
+      // Create a booking with PENDING status
       const booking = await this.prisma.booking.create({
         data: {
           userId: data.userId,
@@ -57,7 +39,16 @@ export class BookingService implements OnModuleInit {
         },
       });
       
-      logger.log(`Booking created: ${booking.id}`);
+      // Send a booking verification request via Kafka
+      await produceMessage('booking-events', {
+        type: 'BOOKING_CREATED',
+        bookingId: booking.id,
+        rideId: data.rideId,
+        userId: data.userId,
+        passengerId: data.passengerId
+      });
+      
+      logger.log(`Booking created and verification requested: ${booking.id}`);
       return booking;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
@@ -67,7 +58,7 @@ export class BookingService implements OnModuleInit {
 
   async getBookingById(id: string) {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
-    if (!booking) throw new NotFoundException(`Booking ${id} not found`);
+    if (!booking) throw new NotFoundException(`Booking with ID ${id} not found`);
     return booking;
   }
 
@@ -78,46 +69,21 @@ export class BookingService implements OnModuleInit {
     if (booking.status === BookingStatus.CANCELLED) throw new BadRequestException('Booking already cancelled');
     
     try {
-      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      const headers = { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) };
+      // Send a booking cancellation event via Kafka
+      await produceMessage('booking-events', {
+        type: 'BOOKING_CANCELLED',
+        bookingId: booking.id,
+        rideId: booking.rideId,
+        userId: booking.userId
+      });
       
-      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          query: `query { getRideById(id: "${booking.rideId}") { id bookingDeadline } }`
-        }),
-      }).catch(error => null);
-      
-      if (!rideResponse?.ok) throw new BadRequestException('Failed to verify ride details');
-      
-      const result = await rideResponse.json();
-      if (result.errors) {
-        throw new BadRequestException(`Failed to verify ride: ${result.errors[0]?.message || 'Unknown error'}`);
-      }
-      
-      const ride = result.data?.getRideById;
-      if (ride?.bookingDeadline && new Date(ride.bookingDeadline) < new Date()) {
-        throw new BadRequestException('Cancellation deadline has passed');
-      }
-      
-      // Only update available seats if the booking was CONFIRMED
-      if (booking.status === BookingStatus.CONFIRMED) {
-        await fetch(`${rideServiceUrl}/graphql`, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            query: `mutation { updateAvailableSeats(id: "${booking.rideId}", change: 1) { id } }`
-          }),
-        });
-      }
-      
+      // Update local booking status
       return this.prisma.booking.update({
         where: { id },
         data: { status: BookingStatus.CANCELLED },
       });
     } catch (error) {
-      if (error instanceof BadRequestException || error instanceof ForbiddenException) throw error;
+      if (error instanceof ForbiddenException || error instanceof BadRequestException) throw error;
       throw new BadRequestException(`Failed to cancel booking: ${error.message}`);
     }
   }
@@ -130,58 +96,19 @@ export class BookingService implements OnModuleInit {
     }
     
     try {
-      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      const headers = { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) };
+      // Send a booking acceptance event via Kafka
+      await produceMessage('booking-events', {
+        type: 'BOOKING_ACCEPTED',
+        bookingId: booking.id,
+        rideId: booking.rideId,
+        driverId: driverId
+      });
       
-      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          query: `query { getRideById(id: "${booking.rideId}") { id driverId seatsAvailable } }`
-        }),
-      }).catch(error => null);
-      
-      if (!rideResponse?.ok) throw new BadRequestException('Failed to verify ride ownership');
-      
-      const result = await rideResponse.json();
-      if (result.errors) {
-        throw new BadRequestException(`Failed to verify ride: ${result.errors[0]?.message || 'Unknown error'}`);
-      }
-      
-      const ride = result.data?.getRideById;
-      if (!ride) throw new BadRequestException(`Ride ${booking.rideId} not found`);
-      
-      if (ride.driverId !== driverId) {
-        throw new ForbiddenException('You can only accept bookings for your own rides');
-      }
-      
-      if (ride.seatsAvailable <= 0) throw new BadRequestException('No seats available');
-      
-      const updateResponse = await fetch(`${rideServiceUrl}/graphql`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          query: `mutation { updateAvailableSeats(id: "${booking.rideId}", change: -1) { id } }`
-        }),
-      }).catch(error => null);
-      
-      if (!updateResponse?.ok) throw new BadRequestException('Failed to update seats');
-      
-      const updateResult = await updateResponse.json();
-      if (updateResult.errors) {
-        if (updateResult.errors.toString().includes('Not enough seats')) {
-          throw new BadRequestException('No seats available');
-        }
-        throw new BadRequestException('Failed to update seats');
-      }
-      
-      const updatedBooking = await this.prisma.booking.update({
+      // Update the booking status
+      return this.prisma.booking.update({
         where: { id },
         data: { status: BookingStatus.CONFIRMED },
       });
-
-      logger.log(`Booking ${id} accepted by driver ${driverId}`);
-      return updatedBooking;
     } catch (error) {
       if (error instanceof ForbiddenException || error instanceof BadRequestException) throw error;
       throw new BadRequestException(`Failed to accept booking: ${error.message}`);
@@ -192,30 +119,13 @@ export class BookingService implements OnModuleInit {
     const booking = await this.getBookingById(id);
     
     try {
-      const rideServiceUrl = process.env.RIDE_SERVICE_URL || 'http://localhost:3002';
-      const headers = { 'Content-Type': 'application/json', ...(token && { 'Authorization': `Bearer ${token}` }) };
-      
-      const rideResponse = await fetch(`${rideServiceUrl}/graphql`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          query: `query { getRideById(id: "${booking.rideId}") { id driverId } }`
-        }),
-      }).catch(error => null);
-      
-      if (!rideResponse?.ok) throw new BadRequestException('Failed to verify ride ownership');
-      
-      const result = await rideResponse.json();
-      if (result.errors) {
-        throw new BadRequestException(`Failed to verify ride: ${result.errors[0]?.message || 'Unknown error'}`);
-      }
-      
-      const ride = result.data?.getRideById;
-      if (!ride) throw new BadRequestException(`Ride ${booking.rideId} not found`);
-      
-      if (ride.driverId !== driverId) {
-        throw new ForbiddenException('You can only reject bookings for your own rides');
-      }
+      // Send a booking rejection event via Kafka
+      await produceMessage('booking-events', {
+        type: 'BOOKING_REJECTED',
+        bookingId: booking.id,
+        rideId: booking.rideId,
+        driverId: driverId
+      });
       
       return this.prisma.booking.update({
         where: { id },
@@ -226,7 +136,71 @@ export class BookingService implements OnModuleInit {
       throw new BadRequestException(`Failed to reject booking: ${error.message}`);
     }
   }
-
+  
+  // Kafka event handlers
+  
+  // Handle user login events
+  async logUserLogin(userId: string) {
+    logger.log(`User logged in: ${userId}`);
+    // Additional login handling logic can be added here
+  }
+  
+  // Called when a booking verification succeeds
+  async processVerificationSuccess(bookingId: string, rideId: string, driverId: string) {
+    logger.log(`Booking verification successful for booking ${bookingId}`);
+    
+    // Update the booking with the verification result if needed
+    // For now, we'll keep it in PENDING status until the driver accepts
+  }
+  
+  // Called when a booking verification fails
+  async processVerificationFailure(bookingId: string, rideId: string, reason: string) {
+    logger.log(`Booking verification failed for booking ${bookingId}: ${reason}`);
+    
+    try {
+      // Update the booking to REJECTED status with the failure reason
+      await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: { status: BookingStatus.REJECTED },
+      });
+      
+      // Additional notification logic could be added here
+    } catch (error) {
+      logger.error(`Error updating booking after verification failure: ${error.message}`);
+    }
+  }
+  
+  // Handle ride cancellation events
+  async handleRideCancellation(rideId: string) {
+    logger.log(`Ride ${rideId} was cancelled, updating affected bookings`);
+    
+    try {
+      // Find all bookings for the cancelled ride
+      const bookings = await this.prisma.booking.findMany({
+        where: {
+          rideId,
+          status: {
+            in: [BookingStatus.PENDING, BookingStatus.CONFIRMED]
+          }
+        }
+      });
+      
+      // Update all affected bookings to CANCELLED
+      for (const booking of bookings) {
+        await this.prisma.booking.update({
+          where: { id: booking.id },
+          data: { status: BookingStatus.CANCELLED }
+        });
+        
+        // Additional notification logic could be added here
+      }
+      
+      logger.log(`Updated ${bookings.length} bookings to CANCELLED due to ride cancellation`);
+    } catch (error) {
+      logger.error(`Error handling ride cancellation: ${error.message}`);
+    }
+  }
+  
   async getAllBookings() {
     return this.prisma.booking.findMany();
   }
