@@ -20,7 +20,6 @@ async function bootstrap() {
       whitelist: true,
       transform: true,
       forbidNonWhitelisted: true,
-      disableErrorMessages: false,
     }),
   );
 
@@ -49,10 +48,13 @@ async function bootstrap() {
     return Promise.reject(error);
   });
 
+  // Kafka is now initialized in the BookingService
+
   // Start the server
   const port = process.env.PORT || 3002;
   await app.listen(port);
-  console.log(`Booking service running on http://localhost:${port}`);
+  console.log(`🚀 Booking Service is running on: http://localhost:${port}`);
+  console.log(`📌 GraphQL Playground: http://localhost:${port}/graphql`);
 }
 
 bootstrap();

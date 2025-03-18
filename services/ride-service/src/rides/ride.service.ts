@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { connectConsumer, startConsumer } from '../utils/kafka';
+import { connectConsumer, connectProducer, startConsumer, produceMessage } from '../utils/kafka';
 import { SearchRideInput } from './dto/ride.dto';
 import { RideStatus } from './ride.model';
 
@@ -15,7 +15,8 @@ export class RideService implements OnModuleInit {
     try {
       this.logger.log('🟡 Initializing Kafka Consumer for Ride Service...');
       await connectConsumer();
-      await startConsumer(); 
+      await connectProducer();
+      await startConsumer(this); 
       this.logger.log('✅ Kafka Consumer Started Successfully for Ride Service');
     } catch (error) {
       this.logger.error('❌ Failed to initialize Kafka Consumer:', error);
@@ -47,7 +48,17 @@ export class RideService implements OnModuleInit {
       data.bookingDeadline = deadline;
     }
 
-    return this.prisma.ride.create({ data });
+    const ride = await this.prisma.ride.create({ data });
+    
+    // Publish event about new ride creation
+    await produceMessage('ride-events', {
+      type: 'RIDE_CREATED',
+      rideId: ride.id,
+      driverId: ride.driverId,
+      seatsAvailable: ride.seatsAvailable
+    });
+    
+    return ride;
   }
 
   // ✅ Get all rides
@@ -76,13 +87,38 @@ export class RideService implements OnModuleInit {
     bookingDeadline: Date;
   }>) {
     const ride = await this.getRideById(id);
-    return this.prisma.ride.update({ where: { id }, data });
+    const updatedRide = await this.prisma.ride.update({ where: { id }, data });
+    
+    // Publish event about ride update if relevant fields changed
+    if (data.seatsAvailable !== undefined || 
+        data.status !== undefined || 
+        data.departure !== undefined || 
+        data.bookingDeadline !== undefined) {
+      await produceMessage('ride-events', {
+        type: 'RIDE_UPDATED',
+        rideId: updatedRide.id,
+        driverId: updatedRide.driverId,
+        seatsAvailable: updatedRide.seatsAvailable,
+        status: updatedRide.status
+      });
+    }
+    
+    return updatedRide;
   }
 
   // ✅ Delete a ride
   async deleteRide(id: string) {
-    await this.getRideById(id);
-    return this.prisma.ride.delete({ where: { id } });
+    const ride = await this.getRideById(id);
+    const deletedRide = await this.prisma.ride.delete({ where: { id } });
+    
+    // Publish event about ride deletion
+    await produceMessage('ride-events', {
+      type: 'RIDE_DELETED',
+      rideId: deletedRide.id,
+      driverId: deletedRide.driverId
+    });
+    
+    return deletedRide;
   }
 
   // ✅ Search for rides
@@ -146,10 +182,96 @@ export class RideService implements OnModuleInit {
       throw new BadRequestException(`Not enough seats available (current: ${ride.seatsAvailable})`);
     }
     
-    return this.prisma.ride.update({
+    const updatedRide = await this.prisma.ride.update({
       where: { id: rideId },
       data: { seatsAvailable: newSeatsAvailable },
     });
+    
+    // Publish seat availability change event
+    await produceMessage('ride-events', {
+      type: 'SEATS_UPDATED',
+      rideId: updatedRide.id,
+      seatsAvailable: updatedRide.seatsAvailable
+    });
+    
+    return updatedRide;
   }
-
+  
+  // ✅ Verify a booking can be made for this ride
+  async verifyRideBooking(rideId: string, bookingId: string) {
+    try {
+      const ride = await this.getRideById(rideId);
+      
+      // Check if ride has available seats
+      if (ride.seatsAvailable <= 0) {
+        // Publish booking verification result
+        await produceMessage('booking-responses', {
+          type: 'BOOKING_VERIFICATION_FAILED',
+          rideId,
+          bookingId,
+          reason: 'No seats available'
+        });
+        return false;
+      }
+      
+      // Check if booking deadline has passed
+      if (ride.bookingDeadline && new Date(ride.bookingDeadline) < new Date()) {
+        await produceMessage('booking-responses', {
+          type: 'BOOKING_VERIFICATION_FAILED',
+          rideId,
+          bookingId,
+          reason: 'Booking deadline has passed'
+        });
+        return false;
+      }
+      
+      // If all checks pass, publish success response
+      await produceMessage('booking-responses', {
+        type: 'BOOKING_VERIFICATION_SUCCESS',
+        rideId,
+        bookingId,
+        driverId: ride.driverId,
+        seatsAvailable: ride.seatsAvailable
+      });
+      
+      return true;
+    } catch (error) {
+      this.logger.error(`Error verifying booking: ${error.message}`);
+      
+      // Publish error response
+      await produceMessage('booking-responses', {
+        type: 'BOOKING_VERIFICATION_FAILED',
+        rideId,
+        bookingId,
+        reason: error.message
+      });
+      
+      return false;
+    }
+  }
+  
+  // ✅ Handle booking cancellation
+  async handleBookingCancellation(rideId: string) {
+    try {
+      // Increase available seats by 1
+      await this.updateAvailableSeats(rideId, 1);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error handling booking cancellation: ${error.message}`);
+      return false;
+    }
+  }
+  
+  // ✅ Handle booking acceptance
+  async handleBookingAccepted(rideId: string) {
+    try {
+      // Decrease available seats by 1
+      await this.updateAvailableSeats(rideId, -1);
+      this.logger.log(`Seats updated for ride ${rideId} after booking acceptance`);
+      return true;
+    } catch (error) {
+      this.logger.error(`Error handling booking acceptance: ${error.message}`);
+      return false;
+    }
+  }
 }

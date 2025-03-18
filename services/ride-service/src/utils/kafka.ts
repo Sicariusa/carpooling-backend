@@ -5,12 +5,14 @@ const logger = new Logger('Kafka');
 
 const kafka = new Kafka({
   clientId: "ride-service",
-  brokers: ["localhost:9092"], // Ensure your Kafka broker is running
+  brokers: [process.env.KAFKA_BROKER || "localhost:9092"],
 });
 
 export const consumer = kafka.consumer({ groupId: "ride-group" });
+export const producer = kafka.producer();
 
 let isConsumerInitialized = false;
+let isProducerInitialized = false;
 
 /**
  * Connects and subscribes to Kafka topics.
@@ -24,8 +26,9 @@ export async function connectConsumer() {
   try {
     await consumer.connect();
     await consumer.subscribe({ topic: "user-events", fromBeginning: true });
+    await consumer.subscribe({ topic: "booking-events", fromBeginning: true });
     
-    logger.log('✅ Kafka Consumer Connected and Subscribed to user-events');
+    logger.log('✅ Kafka Consumer Connected and Subscribed to required topics');
     isConsumerInitialized = true;
   } catch (error) {
     logger.error(`❌ Failed to connect Kafka consumer: ${error.message}`);
@@ -34,9 +37,28 @@ export async function connectConsumer() {
 }
 
 /**
+ * Connects the Kafka producer.
+ */
+export async function connectProducer() {
+  if (isProducerInitialized) {
+    logger.warn("⚠️ Kafka Producer is already initialized.");
+    return;
+  }
+
+  try {
+    await producer.connect();
+    logger.log('✅ Kafka Producer Connected');
+    isProducerInitialized = true;
+  } catch (error) {
+    logger.error(`❌ Failed to connect Kafka producer: ${error.message}`);
+    throw error;
+  }
+}
+
+/**
  * Starts consuming Kafka messages and processing events.
  */
-export async function startConsumer() {
+export async function startConsumer(rideService) {
   try {
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
@@ -51,14 +73,14 @@ export async function startConsumer() {
           logger.log(`📥 Received Kafka Event: ${JSON.stringify(event)}`);
 
           // Event Handling Logic
-          handleKafkaEvent(event);
+          handleKafkaEvent(event, rideService);
         } catch (error) {
           logger.error(`❌ Error processing Kafka message: ${error.message}`);
         }
       },
     });
 
-    logger.log('🚀 Kafka consumer started and listening for user events');
+    logger.log('🚀 Kafka consumer started and listening for events');
   } catch (error) {
     logger.error(`❌ Failed to start Kafka consumer: ${error.message}`);
     throw error;
@@ -68,12 +90,36 @@ export async function startConsumer() {
 /**
  * Handles Kafka events based on event type.
  * @param event - The parsed Kafka event message
+ * @param rideService - The ride service instance for handling ride-related operations
  */
-function handleKafkaEvent(event: any) {
+function handleKafkaEvent(event: any, rideService: any) {
   switch (event.type) {
     case 'USER_VERIFIED':
       logger.log(`✅ User verified: ${event.userId}`);
       // Example: Store user verification status in a cache or DB
+      break;
+      
+    case 'BOOKING_CREATED':
+      logger.log(`✅ Booking created: ${event.bookingId} for ride: ${event.rideId}`);
+      // Check if seats are available and update ride status if needed
+      rideService.verifyRideBooking(event.rideId, event.bookingId);
+      break;
+      
+    case 'BOOKING_CANCELLED':
+      logger.log(`✅ Booking cancelled: ${event.bookingId} for ride: ${event.rideId}`);
+      // Increase available seats
+      rideService.handleBookingCancellation(event.rideId);
+      break;
+      
+    case 'BOOKING_ACCEPTED':
+      logger.log(`✅ Booking accepted: ${event.bookingId} for ride: ${event.rideId}`);
+      // Decrease available seats
+      rideService.handleBookingAccepted(event.rideId);
+      break;
+      
+    case 'BOOKING_REJECTED':
+      logger.log(`✅ Booking rejected: ${event.bookingId} for ride: ${event.rideId}`);
+      // No need to update seats as they weren't reserved yet
       break;
 
     default:
@@ -83,14 +129,47 @@ function handleKafkaEvent(event: any) {
 }
 
 /**
- * Gracefully disconnects the Kafka consumer.
+ * Sends a message to a Kafka topic.
+ * @param topic - Kafka topic to send message to
+ * @param message - Message payload
  */
-export async function disconnectConsumer() {
+export async function produceMessage(topic: string, message: any) {
+  if (!isProducerInitialized) {
+    await connectProducer();
+  }
+  
   try {
-    await consumer.disconnect();
-    logger.log('🔌 Kafka Consumer Disconnected');
-    isConsumerInitialized = false;
+    await producer.send({
+      topic,
+      messages: [
+        { value: JSON.stringify(message) },
+      ],
+    });
+    logger.log(`📤 Produced message to ${topic}: ${JSON.stringify(message)}`);
+    return true;
   } catch (error) {
-    logger.error(`❌ Failed to disconnect Kafka consumer: ${error.message}`);
+    logger.error(`❌ Error producing message to ${topic}: ${error.message}`);
+    return false;
+  }
+}
+
+/**
+ * Gracefully disconnects the Kafka consumer and producer.
+ */
+export async function disconnectKafka() {
+  try {
+    if (isConsumerInitialized) {
+      await consumer.disconnect();
+      logger.log('🔌 Kafka Consumer Disconnected');
+      isConsumerInitialized = false;
+    }
+    
+    if (isProducerInitialized) {
+      await producer.disconnect();
+      logger.log('🔌 Kafka Producer Disconnected');
+      isProducerInitialized = false;
+    }
+  } catch (error) {
+    logger.error(`❌ Failed to disconnect Kafka: ${error.message}`);
   }
 }

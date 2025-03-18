@@ -1,7 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import { connectConsumer, startConsumer } from './utils/kafka';
 import axios from 'axios';
 
 async function bootstrap() {
@@ -24,9 +23,7 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // ✅ Start Kafka Consumer
-  await connectConsumer();
-  await startConsumer();
+  // Kafka is now initialized in the RideService
 
   // Add axios interceptor for debugging API calls to user service
   axios.interceptors.request.use(request => {
@@ -43,7 +40,7 @@ async function bootstrap() {
   });
 
   // ✅ Start the server
-  const port = process.env.PORT ?? 3002;
+  const port = process.env.PORT ?? 3001;
   await app.listen(port);
   console.log(`🚀 Ride-Service running on: ${await app.getUrl()}`);
   console.log(`📌 GraphQL Playground: http://localhost:${port}/graphql`);
