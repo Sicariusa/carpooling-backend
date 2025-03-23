@@ -140,12 +140,12 @@ export class RideService implements OnModuleInit {
       status: RideStatus.PENDING, // Only show pending rides
     };
 
-    if (origin) where.origin = origin;
-    if (destination) where.destination = destination;
+    if (origin) where.origin = { contains: origin, mode: 'insensitive' }; 
+    if (destination) where.destination = { contains: destination, mode: 'insensitive' }; 
     if (isFromGIU !== undefined) where.isFromGIU = isFromGIU;
     if (isToGIU !== undefined) where.isToGIU = isToGIU;
     if (isGirlsOnly !== undefined) where.isGirlsOnly = isGirlsOnly;
-    if (street) where.street = street;
+    if (street) where.street = { contains: street, mode: 'insensitive' }; ;
 
     // If departure date is provided, search for rides on that day
     if (departureDate) {
