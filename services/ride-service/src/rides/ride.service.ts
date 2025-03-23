@@ -106,7 +106,7 @@ export class RideService implements OnModuleInit {
     return updatedRide;
   }
 
-  // ✅ Delete a ride
+  // Delete a ride
   async deleteRide(id: string) {
     const ride = await this.getRideById(id);
     const deletedRide = await this.prisma.ride.delete({ where: { id } });
@@ -121,7 +121,7 @@ export class RideService implements OnModuleInit {
     return deletedRide;
   }
 
-  // ✅ Search for rides
+  // Search for rides
   async searchRides(searchParams: SearchRideInput) {
     const { 
       origin, 
@@ -165,7 +165,7 @@ export class RideService implements OnModuleInit {
     });
   }
 
-  // ✅ Get rides offered by a driver
+  //Get rides offered by a driver
   async getDriverRides(driverId: string) {
     return this.prisma.ride.findMany({
       where: { driverId },
@@ -173,7 +173,7 @@ export class RideService implements OnModuleInit {
     });
   }
 
-  // ✅ Update available seats
+  // Update available seats
   async updateAvailableSeats(rideId: string, change: number) {
     const ride = await this.getRideById(rideId);
     
@@ -197,7 +197,7 @@ export class RideService implements OnModuleInit {
     return updatedRide;
   }
   
-  // ✅ Verify a booking can be made for this ride
+  // Verify a booking can be made for this ride
   async verifyRideBooking(rideId: string, bookingId: string) {
     try {
       const ride = await this.getRideById(rideId);
@@ -250,7 +250,7 @@ export class RideService implements OnModuleInit {
     }
   }
   
-  // ✅ Handle booking cancellation
+  // Handle booking cancellation
   async handleBookingCancellation(rideId: string) {
     try {
       // Increase available seats by 1
@@ -262,7 +262,7 @@ export class RideService implements OnModuleInit {
     }
   }
   
-  // ✅ Handle booking acceptance
+  // Handle booking acceptance
   async handleBookingAccepted(rideId: string) {
     try {
       // Decrease available seats by 1
