@@ -14,6 +14,7 @@ type Ride {
   status: RideStatus!
   isFromGIU: Boolean!
   isToGIU: Boolean!
+  street: String
   bookingDeadline: DateTime
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -46,6 +47,7 @@ input SearchRideInput {
   isToGIU: Boolean
   isGirlsOnly: Boolean
   departureDate: DateTime
+  street: String
 }
 
 type Mutation {
@@ -61,6 +63,7 @@ input CreateRideInput {
   driverId: String!
   origin: String!
   destination: String!
+  street: String
   departure: DateTime!
   seatsAvailable: Int!
   price: Float!
@@ -73,6 +76,7 @@ input CreateRideInput {
 input UpdateRideInput {
   origin: String
   destination: String
+  street: String
   departure: DateTime
   seatsAvailable: Int
   price: Float

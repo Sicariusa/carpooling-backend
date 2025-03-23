@@ -47,6 +47,9 @@ export class Ride {
   @Field()
   isToGIU: boolean;
 
+  @Field({ nullable: true }) 
+  street?: string;
+
   @Field({ nullable: true })
   bookingDeadline?: Date;
 
