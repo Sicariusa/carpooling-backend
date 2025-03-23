@@ -20,6 +20,11 @@ export class CreateRideInput {
   @IsNotEmpty()
   destination: string;
 
+  @Field({ nullable: true })  
+  @IsOptional()
+  @IsString()
+  street?: string;
+
   @Field()
   @Type(() => Date)
   @IsDate()
@@ -65,6 +70,11 @@ export class UpdateRideInput {
   @IsOptional()
   @IsString()
   destination?: string;
+
+  @Field({ nullable: true })  
+  @IsOptional()
+  @IsString()
+  street?: string;
 
   @Field({ nullable: true })
   @IsOptional()
@@ -132,4 +142,11 @@ export class SearchRideInput {
   @Type(() => Date)
   @IsDate()
   departureDate?: Date;
+
+  @Field({ nullable: true })  
+  @IsOptional()
+  @IsString()
+  street?: string;
+
+
 }

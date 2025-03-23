@@ -10,20 +10,20 @@ export class RideService implements OnModuleInit {
 
   constructor(private prisma: PrismaService) {}
 
-  // ✅ Automatically start Kafka Consumer when service initializes
+  //  Automatically start Kafka Consumer when service initializes
   async onModuleInit() {
     try {
       this.logger.log('🟡 Initializing Kafka Consumer for Ride Service...');
       await connectConsumer();
       await connectProducer();
       await startConsumer(this); 
-      this.logger.log('✅ Kafka Consumer Started Successfully for Ride Service');
+      this.logger.log(' Kafka Consumer Started Successfully for Ride Service');
     } catch (error) {
-      this.logger.error('❌ Failed to initialize Kafka Consumer:', error);
+      this.logger.error(' Failed to initialize Kafka Consumer:', error);
     }
   }
 
-  // ✅ Create a new ride
+  //  Create a new ride
   async createRide(data: { 
     driverId: string; 
     origin: string; 
@@ -35,6 +35,7 @@ export class RideService implements OnModuleInit {
     isFromGIU?: boolean;
     isToGIU?: boolean;
     bookingDeadline?: Date;
+    street?: string;
   }) {
     // Validate that the ride is either from or to GIU
     if (!data.isFromGIU && !data.isToGIU) {
@@ -61,12 +62,12 @@ export class RideService implements OnModuleInit {
     return ride;
   }
 
-  // ✅ Get all rides
+  //  Get all rides
   async getAllRides() {
     return this.prisma.ride.findMany();
   }
 
-  // ✅ Get a ride by ID
+  //  Get a ride by ID
   async getRideById(id: string) {
     const ride = await this.prisma.ride.findUnique({ where: { id } });
     if (!ride) {
@@ -75,7 +76,7 @@ export class RideService implements OnModuleInit {
     return ride;
   }
 
-  // ✅ Update a ride
+  //  Update a ride
   async updateRide(id: string, data: Partial<{ 
     origin: string; 
     destination: string; 
@@ -85,6 +86,7 @@ export class RideService implements OnModuleInit {
     isGirlsOnly: boolean;
     status: RideStatus;
     bookingDeadline: Date;
+    street?: string; 
   }>) {
     const ride = await this.getRideById(id);
     const updatedRide = await this.prisma.ride.update({ where: { id }, data });
@@ -129,7 +131,8 @@ export class RideService implements OnModuleInit {
       isFromGIU, 
       isToGIU, 
       isGirlsOnly,
-      departureDate 
+      departureDate,
+      street 
     } = searchParams;
 
     // Build the where clause based on search parameters
@@ -137,11 +140,12 @@ export class RideService implements OnModuleInit {
       status: RideStatus.PENDING, // Only show pending rides
     };
 
-    if (origin) where.origin = origin;
-    if (destination) where.destination = destination;
+    if (origin) where.origin = { contains: origin, mode: 'insensitive' }; 
+    if (destination) where.destination = { contains: destination, mode: 'insensitive' }; 
     if (isFromGIU !== undefined) where.isFromGIU = isFromGIU;
     if (isToGIU !== undefined) where.isToGIU = isToGIU;
     if (isGirlsOnly !== undefined) where.isGirlsOnly = isGirlsOnly;
+    if (street) where.street = { contains: street, mode: 'insensitive' }; ;
 
     // If departure date is provided, search for rides on that day
     if (departureDate) {

@@ -3,31 +3,29 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"  // Change this if using another DB (e.g., MySQL, SQLite)
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Ride {
-  id              String   @id @default(uuid())
-  driverId        String   @db.Uuid  // Foreign Key to User (Driver)
+  id              String     @id @default(uuid())
+  driverId        String     @db.Uuid
   origin          String
   destination     String
   departure       DateTime
   seatsAvailable  Int
   price           Float
-  isGirlsOnly     Boolean  @default(false)
-  status          RideStatus @default(PENDING)  // ENUM: PENDING, ACTIVE, COMPLETED, CANCELLED
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  isFromGIU       Boolean  @default(false)  // Indicates if the ride is from GIU
-  isToGIU         Boolean  @default(false)  // Indicates if the ride is to GIU
-  bookingDeadline DateTime? // Deadline for booking cancellations
+  isGirlsOnly     Boolean    @default(false)
+  status          RideStatus @default(PENDING)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  isFromGIU       Boolean    @default(false)
+  isToGIU         Boolean    @default(false)
+  bookingDeadline DateTime?
+  street          String?
 
-  // Relations (will do later)
- // driver          User     @relation(fields: [driverId], references: [id])
-
-  @@index([origin, destination])  // Index for faster ride searches
-  @@index([isFromGIU, isToGIU])   // Index for GIU-related searches
+  @@index([origin, destination])
+  @@index([isFromGIU, isToGIU])
 }
 
 enum RideStatus {
