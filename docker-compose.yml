@@ -1,0 +1,135 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: carpooling-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_MULTIPLE_DATABASES: ride_service,booking_service,users
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/create-multiple-postgresql-databases.sh:/docker-entrypoint-initdb.d/create-multiple-postgresql-databases.sh
+    networks:
+      - carpooling-network
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.3.0
+    container_name: carpooling-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - carpooling-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.3.0
+    container_name: carpooling-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    networks:
+      - carpooling-network
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: carpooling-user-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/users?schema=public
+      PORT: 3003
+      KAFKA_BROKER: kafka:29092
+      JWT_SECRET: your-secret-key-here
+    ports:
+      - "3003:3003"
+    volumes:
+      - ./services/user-service:/app
+      - /app/node_modules
+    networks:
+      - carpooling-network
+    command: >
+      sh -c "
+        npm run prisma:generate &&
+        npm run prisma:migrate:dev &&
+        npm run start:dev
+      "
+
+  ride-service:
+    build:
+      context: ./services/ride-service
+      dockerfile: Dockerfile
+    container_name: carpooling-ride-service
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ride_service?schema=public
+      PORT: 3001
+      KAFKA_BROKER: kafka:29092
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./services/ride-service:/app
+      - /app/node_modules
+    networks:
+      - carpooling-network
+    command: >
+      sh -c "
+        npm run prisma:generate &&
+        npm run prisma:migrate:dev &&
+        npm run start:dev
+      "
+
+  booking-service:
+    build:
+      context: ./services/booking-service
+      dockerfile: Dockerfile
+    container_name: carpooling-booking-service
+    depends_on:
+      - postgres
+      - kafka
+      - ride-service
+      - user-service
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/booking_service?schema=public
+      PORT: 3002
+      KAFKA_BROKER: kafka:29092
+      RIDE_SERVICE_URL: http://ride-service:3001
+      USER_SERVICE_URL: http://user-service:3003
+    ports:
+      - "3002:3002"
+    volumes:
+      - ./services/booking-service:/app
+      - /app/node_modules
+    networks:
+      - carpooling-network
+    command: >
+      sh -c "
+        npm run prisma:generate &&
+        npm run prisma:migrate:dev &&
+        npm run start:dev
+      "
+
+networks:
+  carpooling-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
