@@ -15,15 +15,10 @@ registerEnumType(BookingStatus, {
 
 @InputType()
 export class CreateBookingInput {
-  @Field(() => ID)
-  @IsNotEmpty()
-  @IsString()
-  userId: string; // The ID of the user (required)
-
   @Field(() => ID, { nullable: true })
   @IsOptional()
   @IsString()
-  passengerId?: string; // The ID of the passenger (optional, will default to userId)
+  userId?: string; // The ID of the user (will be set from context)
 
   @Field(() => ID)
   @IsNotEmpty()

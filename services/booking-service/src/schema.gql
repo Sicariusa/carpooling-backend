@@ -5,7 +5,6 @@
 type Booking {
   id: ID!
   userId: ID!
-  passengerId: ID!
   rideId: ID!
   status: BookingStatus!
   pickupLocation: String!
@@ -29,6 +28,7 @@ scalar DateTime
 
 type Query {
   AllBookings: [Booking!]!
+  MyBookings: [Booking!]!
   getBooking(id: ID!): Booking!
 }
 
@@ -40,8 +40,7 @@ type Mutation {
 }
 
 input CreateBookingInput {
-  userId: ID!
-  passengerId: ID
+  userId: ID
   rideId: ID!
   pickupLocation: String!
   dropoffLocation: String!

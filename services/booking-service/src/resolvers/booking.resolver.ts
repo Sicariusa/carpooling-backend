@@ -23,6 +23,16 @@ export class BookingResolver {
     return this.bookingService.getAllBookings();
   }
 
+  @Query(() => [Booking])
+  async MyBookings(@Context() context) {
+    const user = context.req.user;
+    if (!user) {
+      throw new UnauthorizedException('You must be logged in to view your bookings');
+    }
+    
+    return this.bookingService.getUserBookings(user.id);
+  }
+
   @Query(() => Booking)
   async getBooking(@Args('id', { type: () => ID }) id: string, @Context() context) {
     const user = context.req.user;
@@ -47,13 +57,12 @@ export class BookingResolver {
       throw new UnauthorizedException('You must be logged in to book a ride');
     }
     
-    // Set the userId from the authenticated user
-    data.userId = user.id;
+    // Admins and Drivers cannot book rides
+    if(user.role === 'ADMIN' || user.role === 'DRIVER') {
+      throw new UnauthorizedException('Admins and Drivers cannot book rides');
+    }
     
-    // Get the auth token from the request
-    const token = context.req.headers.authorization?.split(' ')[1];
-    
-    return this.bookingService.BookRide(data, token);
+    return this.bookingService.BookRide(data, user.id);
   }
 
   @Mutation(() => Booking)
@@ -66,10 +75,7 @@ export class BookingResolver {
       throw new UnauthorizedException('You must be logged in to cancel a booking');
     }
     
-    // Get the auth token from the request
-    const token = context.req.headers.authorization?.split(' ')[1];
-    
-    return this.bookingService.cancelBooking(id, user.id, token);
+    return this.bookingService.cancelBooking(id, user.id);
   }
 
   @Mutation(() => Booking)
@@ -81,11 +87,11 @@ export class BookingResolver {
     if (!user) {
       throw new UnauthorizedException('You must be logged in to accept a booking');
     }
+    if(user.role !== 'DRIVER') {
+      throw new UnauthorizedException('You are not authorized to accept bookings ONLY DRIVERS');
+    }
     
-    // Get the auth token from the request
-    const token = context.req.headers.authorization?.split(' ')[1];
-    
-    return this.bookingService.acceptBooking(id, user.id, token);
+    return this.bookingService.acceptBooking(id, user.id);
   }
 
   @Mutation(() => Booking)
@@ -97,10 +103,10 @@ export class BookingResolver {
     if (!user) {
       throw new UnauthorizedException('You must be logged in to reject a booking');
     }
+    if(user.role !== 'DRIVER') {
+      throw new UnauthorizedException('You are not authorized to reject bookings ONLY DRIVERS');
+    }
     
-    // Get the auth token from the request
-    const token = context.req.headers.authorization?.split(' ')[1];
-    
-    return this.bookingService.rejectBooking(id, user.id, token);
+    return this.bookingService.rejectBooking(id, user.id);
   }
 }

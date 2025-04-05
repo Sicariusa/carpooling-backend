@@ -23,20 +23,17 @@ export class BookingService implements OnModuleInit {
     }
   }
 
-  async BookRide(data: CreateBookingInput, token?: string): Promise<Booking> {
-    if (!data.passengerId) data.passengerId = data.userId;
-    
+  async BookRide(data: CreateBookingInput, userId: string): Promise<Booking> {
     try {
       // Create a booking with PENDING status
       const booking = await this.prisma.booking.create({
         data: {
-          userId: data.userId,
-          passengerId: data.passengerId,
+          userId: userId,
           rideId: data.rideId,
           status: BookingStatus.PENDING,
           pickupLocation: data.pickupLocation,
           dropoffLocation: data.dropoffLocation,
-        },
+        } as any, // Type assertion to avoid type error
       });
       
       // Send a booking verification request via Kafka
@@ -44,8 +41,7 @@ export class BookingService implements OnModuleInit {
         type: 'BOOKING_CREATED',
         bookingId: booking.id,
         rideId: data.rideId,
-        userId: data.userId,
-        passengerId: data.passengerId
+        userId: userId
       });
       
       logger.log(`Booking created and verification requested: ${booking.id}`);
@@ -62,7 +58,7 @@ export class BookingService implements OnModuleInit {
     return booking;
   }
 
-  async cancelBooking(id: string, userId: string, token?: string) {
+  async cancelBooking(id: string, userId: string) {
     const booking = await this.getBookingById(id);
     
     if (booking.userId !== userId) throw new ForbiddenException('You can only cancel your own bookings');
@@ -88,7 +84,7 @@ export class BookingService implements OnModuleInit {
     }
   }
 
-  async acceptBooking(id: string, driverId: string, token?: string) {
+  async acceptBooking(id: string, driverId: string) {
     const booking = await this.getBookingById(id);
     
     if (booking.status === BookingStatus.CONFIRMED) {
@@ -115,7 +111,7 @@ export class BookingService implements OnModuleInit {
     }
   }
 
-  async rejectBooking(id: string, driverId: string, token?: string) {
+  async rejectBooking(id: string, driverId: string) {
     const booking = await this.getBookingById(id);
     
     try {
@@ -203,5 +199,12 @@ export class BookingService implements OnModuleInit {
   
   async getAllBookings() {
     return this.prisma.booking.findMany();
+  }
+  
+  async getUserBookings(userId: string) {
+    return this.prisma.booking.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' }
+    });
   }
 }

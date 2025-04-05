@@ -13,8 +13,6 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
-.env
-
 # OS
 .DS_Store
 

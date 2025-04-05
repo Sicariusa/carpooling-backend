@@ -10,9 +10,6 @@ export class Booking {
   userId: string;
 
   @Field(() => ID)
-  passengerId: string;
-
-  @Field(() => ID)
   rideId: string;
 
   @Field(() => BookingStatus)

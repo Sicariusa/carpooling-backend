@@ -5,10 +5,10 @@ import { RideStatus } from '../ride.model';
 
 @InputType()
 export class CreateRideInput {
-  @Field()
+  @Field({ nullable: true })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  driverId: string;
+  driverId?: string;
 
   @Field()
   @IsString()

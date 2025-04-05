@@ -60,7 +60,7 @@ type Mutation {
 }
 
 input CreateRideInput {
-  driverId: String!
+  driverId: String
   origin: String!
   destination: String!
   street: String

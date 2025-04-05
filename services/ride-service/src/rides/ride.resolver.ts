@@ -59,11 +59,16 @@ export class RideResolver {
     if (!user) {
       throw new UnauthorizedException('You must be logged in to create a ride');
     }
+    if(user.role !== 'ADMIN' && user.role !== 'DRIVER') 
+    {
+      throw new UnauthorizedException('You are not authorized to create a ride ONLY DRIVERS OR ADMINS');
+    }
     
-    // Set the driverId from the authenticated user
-    data.driverId = user.id;
-    
-    return this.rideService.createRide(data);
+    // Set the driver ID and create the ride
+    return this.rideService.createRide({
+      ...data,
+      driverId: user.id, // Set the driverId from the authenticated user
+    });
   }
 
   @Mutation(() => Ride)
