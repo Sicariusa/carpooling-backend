@@ -39,6 +39,29 @@ export class PaymentResolver {
 
   @Mutation(() => PaymentResult)
   async processPayment(@Args('input') input: ProcessPaymentInput) {
+    // This endpoint uses Stripe test tokens based on the card number provided
+    // For security reasons, raw card details aren't sent directly to Stripe
+    // We determine which test token to use based on the first digits of the card number:
+    // - '4' prefix uses 'pm_card_visa'
+    // - '5' prefix uses 'pm_card_mastercard'
+    // - '34' or '37' prefix uses 'pm_card_amex'
+    // - '6' prefix uses 'pm_card_discover'
+    // 
+    // Example usage:
+    // mutation {
+    //   processPayment(input: {
+    //     paymentId: "payment-id-here"
+    //     cardNumber: "4242424242424242"
+    //     expMonth: 12
+    //     expYear: 2025
+    //     cvc: "123"
+    //   }) {
+    //     success
+    //     message
+    //     paymentId
+    //     status
+    //   }
+    // }
     return this.paymentService.processPayment(input);
   }
 

@@ -59,8 +59,11 @@ enum PaymentStatus {
 }
 
 input ProcessPaymentInput {
+  cardNumber: String! = "4242424242424242"
+  cvc: String! = "123"
+  expMonth: Float! = 12
+  expYear: Float! = 2025
   paymentId: ID!
-  paymentMethodId: String!
 }
 
 type Query {

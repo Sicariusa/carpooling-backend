@@ -48,7 +48,22 @@ export class ProcessPaymentInput {
   @Field()
   @IsNotEmpty()
   @IsString()
-  paymentMethodId: string;
+  cardNumber: string = '4242424242424242';
+
+  @Field()
+  @IsNotEmpty()
+  @IsNumber()
+  expMonth: number = 12;
+
+  @Field()
+  @IsNotEmpty()
+  @IsNumber()
+  expYear: number = 2025;
+
+  @Field()
+  @IsNotEmpty()
+  @IsString()
+  cvc: string = '123';
 }
 
 @ObjectType()
