@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import { ObjectType, Field, Float, Int, registerEnumType } from "@nestjs/graphql";
 
 export enum RideStatus {
