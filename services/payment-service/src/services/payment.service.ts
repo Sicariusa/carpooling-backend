@@ -73,10 +73,10 @@ export class PaymentService implements OnModuleInit {
           bookingId,
           userId,
         },
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: 'never'
-        }
+        // Support all payment methods including those requiring redirects
+        payment_method_types: ['card'],
+        // We'll handle the redirect in the frontend
+        setup_future_usage: 'off_session',
       });
 
       // Create a payment record in our database
@@ -159,10 +159,10 @@ export class PaymentService implements OnModuleInit {
           bookingId: input.bookingId,
           userId,
         },
-        automatic_payment_methods: {
-          enabled: true,
-          allow_redirects: 'never'
-        }
+        // Support all payment methods including those requiring redirects
+        payment_method_types: ['card'],
+        // We'll handle the redirect in the frontend
+        setup_future_usage: 'off_session',
       });
 
       // Create a payment record in our database
@@ -238,7 +238,7 @@ export class PaymentService implements OnModuleInit {
       if (payment.stripeIntentId) {
         await this.stripe.paymentIntents.confirm(payment.stripeIntentId, {
           payment_method: paymentMethodId,
-          return_url: 'https://example.com/payment/success',
+          return_url: process.env.PAYMENT_RETURN_URL || 'https://carpooling-app.com/payment/complete',
         });
       } else {
         throw new BadRequestException('Payment intent ID not found');

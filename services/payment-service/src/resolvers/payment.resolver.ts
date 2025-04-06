@@ -39,13 +39,15 @@ export class PaymentResolver {
 
   @Mutation(() => PaymentResult)
   async processPayment(@Args('input') input: ProcessPaymentInput) {
-    // This endpoint uses Stripe test tokens based on the card number provided
-    // For security reasons, raw card details aren't sent directly to Stripe
-    // We determine which test token to use based on the first digits of the card number:
-    // - '4' prefix uses 'pm_card_visa'
-    // - '5' prefix uses 'pm_card_mastercard'
-    // - '34' or '37' prefix uses 'pm_card_amex'
-    // - '6' prefix uses 'pm_card_discover'
+    // This endpoint processes payments and supports redirect-based payment flows
+    // After processing, users will be redirected to the URL specified in PAYMENT_RETURN_URL env var
+    // or the default carpooling-app.com/payment/complete URL
+    // 
+    // Payment method selection is based on the card number's first digits:
+    // - Visa cards (4xxx): pm_card_visa
+    // - Mastercard (5xxx): pm_card_mastercard
+    // - Amex (34xx/37xx): pm_card_amex
+    // - Discover (6xxx): pm_card_discover
     // 
     // Example usage:
     // mutation {
