@@ -27,12 +27,12 @@ async function bootstrap() {
 
   // Add axios interceptor for debugging API calls to user service
   axios.interceptors.request.use(request => {
-    console.log('Starting Request to User Service:', request.method, request.url);
+    //console.log('Starting Request to User Service:', request.method, request.url);
     return request;
   });
 
   axios.interceptors.response.use(response => {
-    console.log('Response from User Service:', response.status);
+    //console.log('Response from User Service:', response.status);
     return response;
   }, error => {
     console.error('Error in User Service request:', error.message);
