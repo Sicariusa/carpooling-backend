@@ -3,23 +3,59 @@
 # ------------------------------------------------------
 
 type Booking {
+  createdAt: DateTime!
+  dropoffLocation: String!
   id: ID!
-  userId: ID!
-  rideId: ID!
-  status: BookingStatus!
   paymentType: PaymentType!
   pickupLocation: String!
-  dropoffLocation: String!
-  createdAt: DateTime!
+  rideId: ID!
+  status: BookingStatus!
   updatedAt: DateTime!
+  userId: ID!
 }
 
 """Status of a booking"""
 enum BookingStatus {
-  PENDING
-  CONFIRMED
   CANCELLED
+  CONFIRMED
+  PENDING
   REJECTED
+}
+
+type BookingWithPaymentInfo {
+  booking: Booking!
+  createdAt: DateTime!
+  dropoffLocation: String!
+  id: ID!
+  paymentRequired: Boolean
+  paymentUrl: String
+  pickupLocation: String!
+  rideId: ID!
+  status: BookingStatus!
+  updatedAt: DateTime!
+  userId: ID!
+}
+
+input CreateBookingInput {
+  dropoffLocation: String!
+  paymentType: PaymentType!
+  pickupLocation: String!
+  rideId: ID!
+  status: BookingStatus
+  userId: ID
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+type Mutation {
+  BookRide(data: CreateBookingInput!): BookingWithPaymentInfo!
+  acceptBooking(id: ID!): Booking!
+  cancelBooking(id: ID!): Booking!
+  rejectBooking(id: ID!): Booking!
+  updateBookingAfterPayment(bookingId: ID!, status: String!): Booking!
 }
 
 """Type of payment for booking"""
@@ -28,36 +64,8 @@ enum PaymentType {
   CREDIT
 }
 
-"""
-A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
-"""
-scalar DateTime
-
-type BookingWithPaymentInfo {
-  booking: Booking!
-  paymentRequired: Boolean
-  paymentUrl: String
-}
-
 type Query {
   AllBookings: [Booking!]!
   MyBookings: [Booking!]!
   getBooking(id: ID!): Booking!
-}
-
-type Mutation {
-  BookRide(data: CreateBookingInput!): BookingWithPaymentInfo!
-  cancelBooking(id: ID!): Booking!
-  acceptBooking(id: ID!): Booking!
-  rejectBooking(id: ID!): Booking!
-  updateBookingAfterPayment(bookingId: ID!, status: String!): Booking!
-}
-
-input CreateBookingInput {
-  userId: ID
-  rideId: ID!
-  pickupLocation: String!
-  dropoffLocation: String!
-  paymentType: PaymentType!
-  status: BookingStatus
 }

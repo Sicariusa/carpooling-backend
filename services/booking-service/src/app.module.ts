@@ -9,6 +9,7 @@ import { AppService } from 'src/app.service';
 import { BookingModule } from './modules/booking.module';
 import { PrismaService } from './services/prisma.service';
 import { MiddlewareModule } from './middleware/middleware.module';
+import { BookingService } from './services/booking.service';
 
 
 @Module({
@@ -24,6 +25,6 @@ import { MiddlewareModule } from './middleware/middleware.module';
     MiddlewareModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [AppService, PrismaService, BookingService],
 })
 export class AppModule {}

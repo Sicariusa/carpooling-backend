@@ -1,5 +1,6 @@
-import { Field, InputType, ID, registerEnumType } from '@nestjs/graphql';
+import { Field, InputType, ID, registerEnumType, ObjectType } from '@nestjs/graphql';
 import { IsString, IsOptional, IsNotEmpty, IsEnum } from 'class-validator';
+import { Booking } from '../schema/booking.schema';
 
 export enum BookingStatus {
   PENDING = 'PENDING',
@@ -54,4 +55,42 @@ export class CreateBookingInput {
   @IsOptional()
   @IsEnum(BookingStatus)
   status?: BookingStatus; // The status of the booking (optional)
+}
+
+@ObjectType()
+export class BookingWithPaymentInfo {
+  @Field(() => ID)
+  id: string;
+  
+  @Field(() => ID)
+  userId: string;
+  
+  @Field(() => Booking)
+  booking: Booking;
+
+  @Field({ nullable: true })
+  paymentRequired?: boolean;
+
+  @Field({ nullable: true })
+  paymentUrl?: string;
+
+  @Field(() => ID)
+  rideId: string;
+  
+  @Field(() => BookingStatus)
+  status: BookingStatus;
+  
+  @Field()
+  pickupLocation: string;
+  
+  @Field()
+  dropoffLocation: string;
+
+  //createdAt
+  @Field()
+  createdAt: Date;
+
+  //updatedAt
+  @Field()
+  updatedAt: Date;
 }
