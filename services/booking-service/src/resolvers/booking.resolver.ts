@@ -109,4 +109,14 @@ export class BookingResolver {
     
     return this.bookingService.rejectBooking(id, user.id);
   }
+
+  @Mutation(() => Booking)
+  async updateBookingAfterPayment(
+    @Args('bookingId', { type: () => ID }) bookingId: string,
+    @Args('status') status: string
+  ) {
+    // This endpoint is intended to be called by the payment service
+    // In a production app, you would add authentication or API key validation
+    return this.bookingService.updateBookingAfterPayment(bookingId, status);
+  }
 }

@@ -43,6 +43,46 @@ export class BookingService implements OnModuleInit {
         rideId: data.rideId,
         userId: userId
       });
+
+      // Notify the payment service to create a payment intent
+      // This would ideally be handled as part of the Kafka flow in a real microservices architecture
+      // For simplicity, we're using a direct HTTP call to the payment service
+      try {
+        const paymentServiceUrl = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004';
+        const response = await fetch(`${paymentServiceUrl}/graphql`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: `
+              mutation CreatePayment($input: CreatePaymentInput!) {
+                createPayment(input: $input) {
+                  id
+                  clientSecret
+                }
+              }
+            `,
+            variables: {
+              input: {
+                bookingId: booking.id,
+                amount: 20.00, // This would come from the ride service in a real app
+                currency: 'USD',
+              }
+            }
+          }),
+        });
+
+        const paymentData = await response.json();
+        logger.log(`Payment intent created for booking: ${booking.id}`);
+        
+        // In a real app, you might want to store the payment intent info or client secret
+        // in the booking metadata or a separate table
+      } catch (paymentError) {
+        logger.error(`Failed to create payment intent: ${paymentError.message}`);
+        // Continue with the booking process even if payment intent creation fails
+        // In a production system, you might want to handle this differently
+      }
       
       logger.log(`Booking created and verification requested: ${booking.id}`);
       return booking;
@@ -149,6 +189,42 @@ export class BookingService implements OnModuleInit {
     // For now, we'll keep it in PENDING status until the driver accepts
   }
   
+  // Called when a payment is completed successfully
+  async handlePaymentSuccess(bookingId: string) {
+    logger.log(`Payment successful for booking ${bookingId}, notifying ride service`);
+    
+    try {
+      const booking = await this.getBookingById(bookingId);
+      
+      if (booking.status === BookingStatus.CONFIRMED) {
+        logger.log(`Booking ${bookingId} already confirmed, skipping`);
+        return booking;
+      }
+      
+      // Send a booking acceptance event via Kafka to update seat availability
+      await produceMessage('booking-events', {
+        type: 'BOOKING_ACCEPTED',
+        bookingId: booking.id,
+        rideId: booking.rideId,
+        driverId: 'system-payment', // System-initiated acceptance
+        reason: 'payment_completed'
+      });
+      
+      // Update the booking status to CONFIRMED
+      const updatedBooking = await this.prisma.booking.update({
+        where: { id: bookingId },
+        data: { status: BookingStatus.CONFIRMED },
+      });
+      
+      logger.log(`Booking ${bookingId} confirmed after successful payment`);
+      return updatedBooking;
+      
+    } catch (error) {
+      logger.error(`Failed to handle payment success for booking ${bookingId}: ${error.message}`);
+      throw new BadRequestException(`Failed to process payment success: ${error.message}`);
+    }
+  }
+  
   // Called when a booking verification fails
   async processVerificationFailure(bookingId: string, rideId: string, reason: string) {
     logger.log(`Booking verification failed for booking ${bookingId}: ${reason}`);
@@ -206,5 +282,29 @@ export class BookingService implements OnModuleInit {
       where: { userId },
       orderBy: { createdAt: 'desc' }
     });
+  }
+
+  // Add a new REST endpoint to handle payment success notifications
+  async updateBookingAfterPayment(bookingId: string, status: string): Promise<Booking> {
+    logger.log(`Received payment update for booking ${bookingId} with status ${status}`);
+    
+    try {
+      const booking = await this.getBookingById(bookingId);
+      
+      if (status === 'COMPLETED') {
+        return this.handlePaymentSuccess(bookingId);
+      } else if (status === 'FAILED' || status === 'CANCELLED') {
+        // Update booking status based on payment failure
+        return this.prisma.booking.update({
+          where: { id: bookingId },
+          data: { status: BookingStatus.CANCELLED }
+        });
+      }
+      
+      return booking;
+    } catch (error) {
+      logger.error(`Failed to update booking after payment: ${error.message}`);
+      throw new BadRequestException(`Failed to update booking: ${error.message}`);
+    }
   }
 }
