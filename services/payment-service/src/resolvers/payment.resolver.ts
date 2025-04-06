@@ -7,7 +7,7 @@ import {
   PaymentIntent,
   PaymentResult
 } from '../dto/payment.dto';
-import { UseGuards } from '@nestjs/common';
+import { UnauthorizedException } from '@nestjs/common';
 
 @Resolver(() => Payment)
 export class PaymentResolver {
@@ -26,12 +26,15 @@ export class PaymentResolver {
   @Mutation(() => PaymentIntent)
   async createPayment(
     @Args('input') input: CreatePaymentInput,
-    @Context() context: any,
+    @Context() context,
   ) {
     // In a real application, you would extract the userId from an auth token
     // This is a simplified example
-    const userId = context.req?.user?.id || 'user-123';
-    return this.paymentService.createPayment(input, userId);
+    const user = context.req.user;
+    if (!user) {
+      throw new UnauthorizedException('You must be logged in to create a payment');
+    }
+    return this.paymentService.createPayment(input, user.id);
   }
 
   @Mutation(() => PaymentResult)

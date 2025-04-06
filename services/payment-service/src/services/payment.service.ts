@@ -41,28 +41,28 @@ export class PaymentService implements OnModuleInit {
     try {
       logger.log(`Creating payment from Kafka request for booking ${bookingId}`);
       
-      // Check if the booking exists
-      const booking = await this.bookingService.getBookingById(bookingId);
-      if (!booking) {
-        throw new NotFoundException(`Booking with ID ${bookingId} not found`);
-      }
+      // // Check if the booking exists
+      // const booking = await this.bookingService.getBookingById(bookingId);
+      // if (!booking) {
+      //   throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+      // }
 
       // Check if there's already a payment for this booking
-      const existingPayment = await this.prisma.payment.findUnique({
-        where: { bookingId },
-      });
+      // const existingPayment = await this.prisma.payment.findUnique({
+      //   where: { bookingId },
+      // });
 
-      if (existingPayment) {
-        if (existingPayment.status === PaymentStatus.COMPLETED) {
-          logger.log(`Payment already completed for booking ${bookingId}`);
-          return;
-        }
+      // if (existingPayment) {
+      //   if (existingPayment.status === PaymentStatus.COMPLETED) {
+      //     logger.log(`Payment already completed for booking ${bookingId}`);
+      //     return;
+      //   }
 
-        // If payment exists but not completed, delete it to create a new one
-        await this.prisma.payment.delete({
-          where: { id: existingPayment.id },
-        });
-      }
+      //   // If payment exists but not completed, delete it to create a new one
+      //   await this.prisma.payment.delete({
+      //     where: { id: existingPayment.id },
+      //   });
+      // }
 
       // Create a Stripe PaymentIntent
       const amountInCents = Math.round(amount * 100);
@@ -85,7 +85,7 @@ export class PaymentService implements OnModuleInit {
           stripeIntentId: paymentIntent.id,
           metadata: {
             userId,
-            bookingDetails: booking,
+            bookingDetails: bookingId,
           },
         },
       });
@@ -114,11 +114,11 @@ export class PaymentService implements OnModuleInit {
 
   async createPayment(input: CreatePaymentInput, userId: string): Promise<PaymentIntent> {
     try {
-      // Check if the booking exists
-      const booking = await this.bookingService.getBookingById(input.bookingId);
-      if (!booking) {
-        throw new NotFoundException(`Booking with ID ${input.bookingId} not found`);
-      }
+      // // Check if the booking exists
+      // const booking = await this.bookingService.getBookingById(input.bookingId);
+      // if (!booking) {
+      //   throw new NotFoundException(`Booking with ID ${input.bookingId} not found`);
+      // }
 
       // Check if there's already a payment for this booking
       const existingPayment = await this.prisma.payment.findUnique({
@@ -167,7 +167,7 @@ export class PaymentService implements OnModuleInit {
           stripeIntentId: paymentIntent.id,
           metadata: {
             userId,
-            bookingDetails: booking,
+            bookingDetails: input.bookingId,
           },
         },
       });

@@ -3,7 +3,8 @@ import { Request, Response, NextFunction } from 'express';
 import axios from 'axios';
 
 @Injectable()
-export class AuthMiddleware implements NestMiddleware {  private readonly logger = new Logger(AuthMiddleware.name);
+export class AuthMiddleware implements NestMiddleware {
+  private readonly logger = new Logger(AuthMiddleware.name);
 
   async use(req: Request, res: Response, next: NextFunction) {
     try {

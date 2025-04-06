@@ -11,8 +11,10 @@ import { PaymentService } from './services/payment.service';
 import { PrismaService } from './services/prisma.service';
 import { BookingService } from './services/booking.service';
 import { StripeConfigService } from './config/stripe.config';
-import { PaymentResolver } from './controllers/payment.resolver';
+import { PaymentResolver } from './resolvers/payment.resolver';
 import { GraphQLJSON } from './models/payment.model';
+import { MiddlewareModule } from './middleware/middleware.module';
+
 
 @Module({
   imports: [
@@ -23,8 +25,10 @@ import { GraphQLJSON } from './models/payment.model';
       sortSchema: true,
       playground: process.env.NODE_ENV !== 'production',
       resolvers: { JSONObject: GraphQLJSON },
+      context: ({ req }) => ({ req }), // Pass request with user context to resolvers
     }),
     HttpModule,
+    MiddlewareModule,
   ],
   controllers: [AppController],
   providers: [
