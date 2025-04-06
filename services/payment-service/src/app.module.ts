@@ -12,7 +12,7 @@ import { PrismaService } from './services/prisma.service';
 import { BookingService } from './services/booking.service';
 import { StripeConfigService } from './config/stripe.config';
 import { PaymentResolver } from './controllers/payment.resolver';
-import { WebhookController } from './controllers/webhook.controller';
+import { GraphQLJSON } from './models/payment.model';
 
 @Module({
   imports: [
@@ -21,13 +21,12 @@ import { WebhookController } from './controllers/webhook.controller';
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'),
       sortSchema: true,
+      playground: process.env.NODE_ENV !== 'production',
+      resolvers: { JSONObject: GraphQLJSON },
     }),
-    HttpModule.register({
-      timeout: 5000,
-      maxRedirects: 5,
-    }),
+    HttpModule,
   ],
-  controllers: [AppController, WebhookController],
+  controllers: [AppController],
   providers: [
     AppService,
     PrismaService,

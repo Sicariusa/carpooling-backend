@@ -1,4 +1,4 @@
-import { Injectable, Logger, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { StripeConfigService } from '../config/stripe.config';
 import { BookingService } from './booking.service';
@@ -11,11 +11,12 @@ import {
 } from '../dto/payment.dto';
 import Stripe from 'stripe';
 import { Payment } from '@prisma/client';
+import { connectConsumer, startConsumer, produceMessage } from '../utils/kafka';
 
 const logger = new Logger('PaymentService');
 
 @Injectable()
-export class PaymentService {
+export class PaymentService implements OnModuleInit {
   private readonly stripe: Stripe;
 
   constructor(
@@ -24,6 +25,91 @@ export class PaymentService {
     private readonly bookingService: BookingService,
   ) {
     this.stripe = this.stripeConfig.getStripe();
+  }
+
+  async onModuleInit() {
+    try {
+      await connectConsumer();
+      await startConsumer(this);
+      logger.log('Kafka consumer initialized for payment service');
+    } catch (error) {
+      logger.error(`Kafka consumer init failed: ${error.message}`);
+    }
+  }
+
+  async createPaymentFromKafka(bookingId: string, userId: string, amount: number, currency: string): Promise<void> {
+    try {
+      logger.log(`Creating payment from Kafka request for booking ${bookingId}`);
+      
+      // Check if the booking exists
+      const booking = await this.bookingService.getBookingById(bookingId);
+      if (!booking) {
+        throw new NotFoundException(`Booking with ID ${bookingId} not found`);
+      }
+
+      // Check if there's already a payment for this booking
+      const existingPayment = await this.prisma.payment.findUnique({
+        where: { bookingId },
+      });
+
+      if (existingPayment) {
+        if (existingPayment.status === PaymentStatus.COMPLETED) {
+          logger.log(`Payment already completed for booking ${bookingId}`);
+          return;
+        }
+
+        // If payment exists but not completed, delete it to create a new one
+        await this.prisma.payment.delete({
+          where: { id: existingPayment.id },
+        });
+      }
+
+      // Create a Stripe PaymentIntent
+      const amountInCents = Math.round(amount * 100);
+      const paymentIntent = await this.stripe.paymentIntents.create({
+        amount: amountInCents,
+        currency: currency || 'USD',
+        metadata: {
+          bookingId,
+          userId,
+        },
+      });
+
+      // Create a payment record in our database
+      const payment = await this.prisma.payment.create({
+        data: {
+          bookingId,
+          amount,
+          currency: currency || 'USD',
+          status: PaymentStatus.PENDING,
+          stripeIntentId: paymentIntent.id,
+          metadata: {
+            userId,
+            bookingDetails: booking,
+          },
+        },
+      });
+
+      logger.log(`Created payment intent ${paymentIntent.id} for booking ${bookingId}`);
+      
+      // Send payment intent details back to the booking service
+      await produceMessage('payment-events', {
+        type: 'PAYMENT_INTENT_CREATED',
+        bookingId,
+        paymentId: payment.id,
+        clientSecret: paymentIntent.client_secret,
+      });
+      
+    } catch (error) {
+      logger.error(`Failed to create payment from Kafka: ${error.message}`);
+      
+      // Notify the booking service about the failure
+      await produceMessage('payment-events', {
+        type: 'PAYMENT_INTENT_FAILED',
+        bookingId,
+        error: error.message,
+      });
+    }
   }
 
   async createPayment(input: CreatePaymentInput, userId: string): Promise<PaymentIntent> {
@@ -145,15 +231,13 @@ export class PaymentService {
         },
       });
 
-      // Notify the booking service about the successful payment
-      try {
-        await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'COMPLETED');
-        logger.log(`Booking service notified about payment success for booking: ${payment.bookingId}`);
-      } catch (notificationError) {
-        logger.error(`Failed to notify booking service: ${notificationError.message}`);
-        // Continue with the payment process even if notification fails
-      }
-
+      // Notify the booking service about the successful payment via Kafka
+      await produceMessage('payment-events', {
+        type: 'PAYMENT_COMPLETED',
+        bookingId: payment.bookingId,
+        paymentId: payment.id
+      });
+      
       logger.log(`Payment ${input.paymentId} completed successfully`);
 
       return {
@@ -177,14 +261,14 @@ export class PaymentService {
         },
       });
       
-      // Notify the booking service about the failed payment
+      // Notify the booking service about the failed payment via Kafka
       if (payment) {
-        try {
-          await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'FAILED');
-          logger.log(`Booking service notified about payment failure for booking: ${payment.bookingId}`);
-        } catch (notificationError) {
-          logger.error(`Failed to notify booking service about payment failure: ${notificationError.message}`);
-        }
+        await produceMessage('payment-events', {
+          type: 'PAYMENT_FAILED',
+          bookingId: payment.bookingId,
+          paymentId: payment.id,
+          error: error.message
+        });
       }
 
       return {
@@ -220,6 +304,25 @@ export class PaymentService {
     return payment;
   }
 
+  async cancelPaymentByBookingId(bookingId: string): Promise<void> {
+    try {
+      // Find the payment by booking ID
+      const payment = await this.prisma.payment.findUnique({
+        where: { bookingId },
+      });
+
+      if (!payment) {
+        logger.log(`No payment found for booking ${bookingId} to cancel`);
+        return;
+      }
+
+      await this.cancelPayment(payment.id);
+      logger.log(`Payment for booking ${bookingId} cancelled successfully`);
+    } catch (error) {
+      logger.error(`Failed to cancel payment for booking ${bookingId}: ${error.message}`);
+    }
+  }
+
   async cancelPayment(paymentId: string): Promise<PaymentResult> {
     try {
       const payment = await this.getPaymentById(paymentId);
@@ -248,6 +351,13 @@ export class PaymentService {
           },
         });
 
+        // Notify the booking service about the refund via Kafka
+        await produceMessage('payment-events', {
+          type: 'PAYMENT_REFUNDED',
+          bookingId: payment.bookingId,
+          paymentId: payment.id
+        });
+
         return {
           success: true,
           message: 'Payment refunded successfully',
@@ -269,13 +379,12 @@ export class PaymentService {
         },
       });
 
-      // Notify the booking service about the cancellation
-      try {
-        await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'CANCELLED');
-        logger.log(`Booking service notified about payment cancellation for booking: ${payment.bookingId}`);
-      } catch (notificationError) {
-        logger.error(`Failed to notify booking service about cancellation: ${notificationError.message}`);
-      }
+      // Notify the booking service about the cancellation via Kafka
+      await produceMessage('payment-events', {
+        type: 'PAYMENT_CANCELLED',
+        bookingId: payment.bookingId,
+        paymentId: payment.id
+      });
 
       return {
         success: true,
@@ -286,90 +395,6 @@ export class PaymentService {
     } catch (error) {
       logger.error(`Failed to cancel payment: ${error.message}`);
       throw error;
-    }
-  }
-
-  // Webhook handler for Stripe events
-  async handleStripeWebhook(event: Stripe.Event): Promise<void> {
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        await this.handlePaymentIntentSucceeded(event.data.object as Stripe.PaymentIntent);
-        break;
-      case 'payment_intent.payment_failed':
-        await this.handlePaymentIntentFailed(event.data.object as Stripe.PaymentIntent);
-        break;
-      default:
-        logger.log(`Unhandled event type: ${event.type}`);
-    }
-  }
-
-  private async handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    try {
-      // Find the payment by Stripe intent ID
-      const payment = await this.prisma.payment.findUnique({
-        where: { stripeIntentId: paymentIntent.id },
-      });
-
-      if (!payment) {
-        logger.error(`Payment not found for intent ${paymentIntent.id}`);
-        return;
-      }
-
-      // Update payment status if not already completed
-      if (payment.status !== PaymentStatus.COMPLETED) {
-        await this.prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: PaymentStatus.COMPLETED,
-          },
-        });
-
-        // Notify the booking service about the successful payment
-        try {
-          await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'COMPLETED');
-          logger.log(`Booking service notified about webhook payment success for booking: ${payment.bookingId}`);
-        } catch (notificationError) {
-          logger.error(`Failed to notify booking service from webhook: ${notificationError.message}`);
-        }
-      }
-
-      logger.log(`Payment ${payment.id} marked as complete from webhook`);
-    } catch (error) {
-      logger.error(`Failed to process payment success webhook: ${error.message}`);
-    }
-  }
-
-  private async handlePaymentIntentFailed(paymentIntent: Stripe.PaymentIntent): Promise<void> {
-    try {
-      // Find the payment by Stripe intent ID
-      const payment = await this.prisma.payment.findUnique({
-        where: { stripeIntentId: paymentIntent.id },
-      });
-
-      if (!payment) {
-        logger.error(`Payment not found for failed intent ${paymentIntent.id}`);
-        return;
-      }
-
-      // Update payment status to failed
-      await this.prisma.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: PaymentStatus.FAILED,
-        },
-      });
-
-      // Notify the booking service about the failed payment
-      try {
-        await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'FAILED');
-        logger.log(`Booking service notified about webhook payment failure for booking: ${payment.bookingId}`);
-      } catch (notificationError) {
-        logger.error(`Failed to notify booking service about payment failure from webhook: ${notificationError.message}`);
-      }
-
-      logger.log(`Payment ${payment.id} marked as failed from webhook`);
-    } catch (error) {
-      logger.error(`Failed to process payment failure webhook: ${error.message}`);
     }
   }
 } 

@@ -9,6 +9,8 @@ const logger = new Logger('BookingService');
 export class BookingService {
   constructor(private readonly httpService: HttpService) {}
 
+  // This method is kept for backward compatibility only
+  // In a production app, this should be replaced with a Kafka-based approach 
   async getBookingById(bookingId: string): Promise<any> {
     const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3001';
     
@@ -55,48 +57,17 @@ export class BookingService {
     }
   }
 
+  // These methods are kept for backward compatibility
+  // but they're no longer used in the Kafka implementation
   async updateBookingAfterPayment(bookingId: string, status: string): Promise<any> {
-    const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3001';
-    
-    try {
-      const { data } = await firstValueFrom(
-        this.httpService.post(
-          `${bookingServiceUrl}/graphql`,
-          {
-            query: `
-              mutation UpdateBookingAfterPayment($bookingId: ID!, $status: String!) {
-                updateBookingAfterPayment(bookingId: $bookingId, status: $status) {
-                  id
-                  status
-                }
-              }
-            `,
-            variables: { bookingId, status }
-          },
-          {
-            headers: { 'Content-Type': 'application/json' }
-          }
-        ).pipe(
-          catchError((error: AxiosError) => {
-            logger.error(`Error updating booking after payment ${bookingId}: ${error.message}`);
-            throw new Error(`Failed to update booking after payment: ${error.message}`);
-          }),
-        ),
-      );
-
-      if (data.errors) {
-        throw new Error(`GraphQL error updating booking: ${data.errors[0].message}`);
-      }
-
-      return data.data.updateBookingAfterPayment;
-    } catch (error) {
-      logger.error(`Failed to update booking after payment ${bookingId}: ${error.message}`);
-      throw error;
-    }
+    logger.log(`[DEPRECATED] updateBookingAfterPayment called for booking ${bookingId} with status ${status}`);
+    logger.log('This method is deprecated. Use Kafka events instead.');
+    return { id: bookingId, status };
   }
 
-  // Keep this method for backward compatibility
   async updateBookingStatus(bookingId: string, status: string): Promise<any> {
-    return this.updateBookingAfterPayment(bookingId, status);
+    logger.log(`[DEPRECATED] updateBookingStatus called for booking ${bookingId} with status ${status}`);
+    logger.log('This method is deprecated. Use Kafka events instead.');
+    return { id: bookingId, status };
   }
 } 

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, OnModuleInit, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
-import { CreateBookingInput, BookingStatus } from '../dto/booking.dto';
+import { CreateBookingInput, BookingStatus, PaymentType } from '../dto/booking.dto';
 import { PrismaService } from './prisma.service';
 import { connectConsumer, startConsumer, produceMessage } from '../utils/kafka';
 import { Booking } from '@prisma/client';
@@ -33,6 +33,7 @@ export class BookingService implements OnModuleInit {
           status: BookingStatus.PENDING,
           pickupLocation: data.pickupLocation,
           dropoffLocation: data.dropoffLocation,
+          paymentType: data.paymentType,
         } as any, // Type assertion to avoid type error
       });
       
@@ -44,44 +45,21 @@ export class BookingService implements OnModuleInit {
         userId: userId
       });
 
-      // Notify the payment service to create a payment intent
-      // This would ideally be handled as part of the Kafka flow in a real microservices architecture
-      // For simplicity, we're using a direct HTTP call to the payment service
-      try {
-        const paymentServiceUrl = process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004';
-        const response = await fetch(`${paymentServiceUrl}/graphql`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: `
-              mutation CreatePayment($input: CreatePaymentInput!) {
-                createPayment(input: $input) {
-                  id
-                  clientSecret
-                }
-              }
-            `,
-            variables: {
-              input: {
-                bookingId: booking.id,
-                amount: 20.00, // This would come from the ride service in a real app
-                currency: 'USD',
-              }
-            }
-          }),
+      // For CREDIT payments, notify the payment service to create a payment intent
+      if (data.paymentType === PaymentType.CREDIT) {
+        // Send payment creation request via Kafka
+        await produceMessage('payment-events', {
+          type: 'CREATE_PAYMENT_INTENT',
+          bookingId: booking.id,
+          userId: userId,
+          amount: 20.00, // This would come from the ride service in a real app
+          currency: 'USD'
         });
-
-        const paymentData = await response.json();
-        logger.log(`Payment intent created for booking: ${booking.id}`);
         
-        // In a real app, you might want to store the payment intent info or client secret
-        // in the booking metadata or a separate table
-      } catch (paymentError) {
-        logger.error(`Failed to create payment intent: ${paymentError.message}`);
-        // Continue with the booking process even if payment intent creation fails
-        // In a production system, you might want to handle this differently
+        logger.log(`Payment intent creation requested via Kafka for booking: ${booking.id}`);
+      } else if (data.paymentType === PaymentType.CASH) {
+        // For cash payments, we can immediately proceed with the booking process
+        logger.log(`Cash payment selected for booking: ${booking.id}, proceeding with booking verification`);
       }
       
       logger.log(`Booking created and verification requested: ${booking.id}`);
@@ -264,7 +242,13 @@ export class BookingService implements OnModuleInit {
           data: { status: BookingStatus.CANCELLED }
         });
         
-        // Additional notification logic could be added here
+        // Send cancellation event to payment service for any credit card bookings
+        if ((booking as any).paymentType === PaymentType.CREDIT) {
+          await produceMessage('payment-events', {
+            type: 'CANCEL_PAYMENT',
+            bookingId: booking.id,
+          });
+        }
       }
       
       logger.log(`Updated ${bookings.length} bookings to CANCELLED due to ride cancellation`);
@@ -285,8 +269,10 @@ export class BookingService implements OnModuleInit {
   }
 
   // Add a new REST endpoint to handle payment success notifications
+  // DEPRECATED: This method is kept for backward compatibility but should be replaced with Kafka events
   async updateBookingAfterPayment(bookingId: string, status: string): Promise<Booking> {
-    logger.log(`Received payment update for booking ${bookingId} with status ${status}`);
+    logger.log(`[DEPRECATED] Received direct payment update for booking ${bookingId} with status ${status}`);
+    logger.log('This method is deprecated. Use Kafka events instead.');
     
     try {
       const booking = await this.getBookingById(bookingId);

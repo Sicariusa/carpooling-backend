@@ -8,9 +8,19 @@ export enum BookingStatus {
   REJECTED = 'REJECTED'
 }
 
+export enum PaymentType {
+  CASH = 'CASH',
+  CREDIT = 'CREDIT'
+}
+
 registerEnumType(BookingStatus, {
   name: 'BookingStatus',
   description: 'Status of a booking',
+});
+
+registerEnumType(PaymentType, {
+  name: 'PaymentType',
+  description: 'Type of payment for booking',
 });
 
 @InputType()
@@ -34,6 +44,11 @@ export class CreateBookingInput {
   @IsNotEmpty()
   @IsString()
   dropoffLocation: string; // The dropoff location (required)
+
+  @Field(() => PaymentType)
+  @IsNotEmpty()
+  @IsEnum(PaymentType)
+  paymentType: PaymentType; // The payment method (CASH or CREDIT)
 
   @Field(() => BookingStatus, { nullable: true })
   @IsOptional()

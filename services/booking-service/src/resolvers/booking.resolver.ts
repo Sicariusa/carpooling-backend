@@ -1,8 +1,21 @@
-import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
-import { CreateBookingInput, BookingStatus } from '../dto/booking.dto';
+import { Resolver, Query, Mutation, Args, ID, Context, Field, ObjectType } from '@nestjs/graphql';
+import { CreateBookingInput, BookingStatus, PaymentType } from '../dto/booking.dto';
 import { Booking } from '../schema/booking.schema';
 import { BookingService } from '../services/booking.service';
 import { UnauthorizedException } from '@nestjs/common';
+
+// Define a new return type for the BookRide mutation that includes payment details
+@ObjectType()
+class BookingWithPaymentInfo {
+  @Field(() => Booking)
+  booking: Booking;
+
+  @Field({ nullable: true })
+  paymentRequired?: boolean;
+
+  @Field({ nullable: true })
+  paymentUrl?: string;
+}
 
 @Resolver(() => Booking)
 export class BookingResolver {
@@ -50,7 +63,7 @@ export class BookingResolver {
     throw new UnauthorizedException('You are not authorized to view this booking');
   }
 
-  @Mutation(() => Booking)
+  @Mutation(() => BookingWithPaymentInfo)
   async BookRide(@Args('data') data: CreateBookingInput, @Context() context) {
     const user = context.req.user;
     if (!user) {
@@ -62,7 +75,22 @@ export class BookingResolver {
       throw new UnauthorizedException('Admins and Drivers cannot book rides');
     }
     
-    return this.bookingService.BookRide(data, user.id);
+    const booking = await this.bookingService.BookRide(data, user.id);
+    
+    // For CREDIT payment type, we need to redirect to payment
+    if (data.paymentType === PaymentType.CREDIT) {
+      return {
+        booking,
+        paymentRequired: true,
+        paymentUrl: `/payment/${booking.id}` // This URL would be handled by your frontend to show the payment form
+      };
+    }
+    
+    // For CASH payment, no additional action needed
+    return {
+      booking,
+      paymentRequired: false
+    };
   }
 
   @Mutation(() => Booking)

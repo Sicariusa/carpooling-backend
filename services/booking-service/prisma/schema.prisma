@@ -16,6 +16,7 @@ model Booking {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
   status          BookingStatus @default(PENDING)
+  paymentType     PaymentType   @default(CASH)
 }
 
 enum BookingStatus {
@@ -23,4 +24,9 @@ enum BookingStatus {
   CONFIRMED
   CANCELLED
   REJECTED
+}
+
+enum PaymentType {
+  CASH
+  CREDIT
 }

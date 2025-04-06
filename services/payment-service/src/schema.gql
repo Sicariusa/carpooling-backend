@@ -1,0 +1,69 @@
+# ------------------------------------------------------
+# THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+# ------------------------------------------------------
+
+input CreatePaymentInput {
+  amount: Float!
+  bookingId: ID!
+  currency: String = "USD"
+  paymentMethod: String
+}
+
+"""
+A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
+"""
+scalar DateTime
+
+"""JSON object custom scalar type"""
+scalar JSONObject
+
+type Mutation {
+  cancelPayment(paymentId: String!): PaymentResult!
+  createPayment(input: CreatePaymentInput!): PaymentIntent!
+  processPayment(input: ProcessPaymentInput!): PaymentResult!
+}
+
+type Payment {
+  amount: Float!
+  bookingId: ID!
+  createdAt: DateTime!
+  currency: String!
+  id: ID!
+  metadata: JSONObject
+  paymentMethod: String
+  status: PaymentStatus!
+  stripeIntentId: String
+  stripePaymentId: String
+  updatedAt: DateTime!
+}
+
+type PaymentIntent {
+  clientSecret: String!
+  id: String!
+}
+
+type PaymentResult {
+  message: String
+  paymentId: ID
+  status: PaymentStatus
+  success: Boolean!
+}
+
+enum PaymentStatus {
+  CANCELLED
+  COMPLETED
+  FAILED
+  PENDING
+  PROCESSING
+  REFUNDED
+}
+
+input ProcessPaymentInput {
+  paymentId: ID!
+  paymentMethodId: String!
+}
+
+type Query {
+  getPayment(id: String!): Payment!
+  getPaymentByBookingId(bookingId: String!): Payment!
+}

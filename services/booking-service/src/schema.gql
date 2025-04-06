@@ -7,6 +7,7 @@ type Booking {
   userId: ID!
   rideId: ID!
   status: BookingStatus!
+  paymentType: PaymentType!
   pickupLocation: String!
   dropoffLocation: String!
   createdAt: DateTime!
@@ -21,10 +22,22 @@ enum BookingStatus {
   REJECTED
 }
 
+"""Type of payment for booking"""
+enum PaymentType {
+  CASH
+  CREDIT
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
 scalar DateTime
+
+type BookingWithPaymentInfo {
+  booking: Booking!
+  paymentRequired: Boolean
+  paymentUrl: String
+}
 
 type Query {
   AllBookings: [Booking!]!
@@ -33,7 +46,7 @@ type Query {
 }
 
 type Mutation {
-  BookRide(data: CreateBookingInput!): Booking!
+  BookRide(data: CreateBookingInput!): BookingWithPaymentInfo!
   cancelBooking(id: ID!): Booking!
   acceptBooking(id: ID!): Booking!
   rejectBooking(id: ID!): Booking!
@@ -45,5 +58,6 @@ input CreateBookingInput {
   rideId: ID!
   pickupLocation: String!
   dropoffLocation: String!
+  paymentType: PaymentType!
   status: BookingStatus
 }

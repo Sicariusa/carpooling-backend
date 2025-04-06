@@ -7,10 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = new Logger('Bootstrap');
 
-  // For Stripe webhooks, we need the raw body
-  app.use('/webhooks/stripe', express.raw({ type: 'application/json' }));
-  
-  // For other routes
+  // For all routes
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
