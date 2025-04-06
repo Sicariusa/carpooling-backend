@@ -37,6 +37,7 @@ type Mutation {
   cancelBooking(id: ID!): Booking!
   acceptBooking(id: ID!): Booking!
   rejectBooking(id: ID!): Booking!
+  updateBookingAfterPayment(bookingId: ID!, status: String!): Booking!
 }
 
 input CreateBookingInput {

@@ -1,6 +1,7 @@
 import { Controller, Post, Body, Headers, BadRequestException, Req, HttpCode, Param, Get } from '@nestjs/common';
 import { PaymentService } from '../services/payment.service';
 import { StripeConfigService } from '../config/stripe.config';
+import { BookingService } from '../services/booking.service';
 import { Request } from 'express';
 import Stripe from 'stripe';
 
@@ -11,6 +12,7 @@ export class WebhookController {
   constructor(
     private readonly paymentService: PaymentService,
     private readonly stripeConfig: StripeConfigService,
+    private readonly bookingService: BookingService,
   ) {
     this.stripe = this.stripeConfig.getStripe();
   }
@@ -63,34 +65,12 @@ export class WebhookController {
       }
 
       // Call the booking service to handle payment success
-      const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3001';
-      const response = await fetch(`${bookingServiceUrl}/graphql`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: `
-            mutation UpdateBookingAfterPayment($bookingId: ID!, $status: String!) {
-              updateBookingAfterPayment(bookingId: $bookingId, status: $status) {
-                id
-                status
-              }
-            }
-          `,
-          variables: {
-            bookingId,
-            status: 'COMPLETED'
-          }
-        }),
-      });
-
-      const result = await response.json();
+      await this.bookingService.updateBookingAfterPayment(bookingId, 'COMPLETED');
+      
       return {
         success: true,
         message: 'Payment test success event sent to booking service',
-        bookingId,
-        response: result
+        bookingId
       };
     } catch (error) {
       return {

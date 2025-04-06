@@ -24,7 +24,7 @@ async function bootstrap() {
   // Enable CORS
   app.enableCors();
 
-  const port = process.env.PORT || 3002;
+  const port = process.env.PORT || 3004;
   await app.listen(port);
   logger.log(`Payment service running on port ${port}`);
 }

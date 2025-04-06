@@ -16,6 +16,7 @@ import { MiddlewareModule } from './middleware/middleware.module';
     GraphQLModule.forRoot<ApolloDriverConfig>({
       driver: ApolloDriver,
       autoSchemaFile: join(process.cwd(), 'src/schema.gql'), // Generate schema file
+      sortSchema: true, // Sort schema
       playground: true, // Enable GraphQL Playground
       context: ({ req }) => ({ req }), // Pass request object to context
     }),

@@ -147,29 +147,7 @@ export class PaymentService {
 
       // Notify the booking service about the successful payment
       try {
-        const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3000';
-        const response = await fetch(`${bookingServiceUrl}/graphql`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: `
-              mutation UpdateBookingAfterPayment($bookingId: ID!, $status: String!) {
-                updateBookingAfterPayment(bookingId: $bookingId, status: $status) {
-                  id
-                  status
-                }
-              }
-            `,
-            variables: {
-              bookingId: payment.bookingId,
-              status: 'COMPLETED'
-            }
-          }),
-        });
-
-        const bookingData = await response.json();
+        await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'COMPLETED');
         logger.log(`Booking service notified about payment success for booking: ${payment.bookingId}`);
       } catch (notificationError) {
         logger.error(`Failed to notify booking service: ${notificationError.message}`);
@@ -202,29 +180,7 @@ export class PaymentService {
       // Notify the booking service about the failed payment
       if (payment) {
         try {
-          const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3000';
-          const response = await fetch(`${bookingServiceUrl}/graphql`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              query: `
-                mutation UpdateBookingAfterPayment($bookingId: ID!, $status: String!) {
-                  updateBookingAfterPayment(bookingId: $bookingId, status: $status) {
-                    id
-                    status
-                  }
-                }
-              `,
-              variables: {
-                bookingId: payment.bookingId,
-                status: 'FAILED'
-              }
-            }),
-          });
-  
-          const bookingData = await response.json();
+          await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'FAILED');
           logger.log(`Booking service notified about payment failure for booking: ${payment.bookingId}`);
         } catch (notificationError) {
           logger.error(`Failed to notify booking service about payment failure: ${notificationError.message}`);
@@ -313,8 +269,13 @@ export class PaymentService {
         },
       });
 
-      // Update the booking status
-      await this.bookingService.updateBookingStatus(payment.bookingId, 'CANCELLED');
+      // Notify the booking service about the cancellation
+      try {
+        await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'CANCELLED');
+        logger.log(`Booking service notified about payment cancellation for booking: ${payment.bookingId}`);
+      } catch (notificationError) {
+        logger.error(`Failed to notify booking service about cancellation: ${notificationError.message}`);
+      }
 
       return {
         success: true,
@@ -365,29 +326,7 @@ export class PaymentService {
 
         // Notify the booking service about the successful payment
         try {
-          const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3000';
-          const response = await fetch(`${bookingServiceUrl}/graphql`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              query: `
-                mutation UpdateBookingAfterPayment($bookingId: ID!, $status: String!) {
-                  updateBookingAfterPayment(bookingId: $bookingId, status: $status) {
-                    id
-                    status
-                  }
-                }
-              `,
-              variables: {
-                bookingId: payment.bookingId,
-                status: 'COMPLETED'
-              }
-            }),
-          });
-
-          const bookingData = await response.json();
+          await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'COMPLETED');
           logger.log(`Booking service notified about webhook payment success for booking: ${payment.bookingId}`);
         } catch (notificationError) {
           logger.error(`Failed to notify booking service from webhook: ${notificationError.message}`);
@@ -422,29 +361,7 @@ export class PaymentService {
 
       // Notify the booking service about the failed payment
       try {
-        const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3000';
-        const response = await fetch(`${bookingServiceUrl}/graphql`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            query: `
-              mutation UpdateBookingAfterPayment($bookingId: ID!, $status: String!) {
-                updateBookingAfterPayment(bookingId: $bookingId, status: $status) {
-                  id
-                  status
-                }
-              }
-            `,
-            variables: {
-              bookingId: payment.bookingId,
-              status: 'FAILED'
-            }
-          }),
-        });
-
-        const bookingData = await response.json();
+        await this.bookingService.updateBookingAfterPayment(payment.bookingId, 'FAILED');
         logger.log(`Booking service notified about webhook payment failure for booking: ${payment.bookingId}`);
       } catch (notificationError) {
         logger.error(`Failed to notify booking service about payment failure from webhook: ${notificationError.message}`);
