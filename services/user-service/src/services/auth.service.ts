@@ -29,9 +29,11 @@ export class AuthService {
     
     const payload = { 
       sub: user.id, 
+      id: user.id,
       universityId: user.universityId,
       email: user.email,
-      role: user.role 
+      role: user.role,
+      phoneNumber: user.phoneNumber || null
     };
     
     return {
@@ -42,9 +44,52 @@ export class AuthService {
 
   verifyToken(token: string) {
     try {
-      return this.jwtService.verify(token);
+      const payload = this.jwtService.verify(token);
+      return {
+        isValid: true,
+        user: payload
+      };
     } catch (error) {
-      throw new UnauthorizedException('Invalid token');
+      return {
+        isValid: false,
+        error: error.message
+      };
+    }
+  }
+
+  // Method to be used by other services to validate tokens
+  async validateToken(token: string) {
+    try {
+      // Remove 'Bearer ' prefix if present
+      const actualToken = token.startsWith('Bearer ') ? token.slice(7) : token;
+      
+      // Verify the token
+      const payload = this.jwtService.verify(actualToken);
+      
+      // Optionally fetch the latest user data to ensure it's up to date
+      const user = await this.usersService.findById(payload.sub);
+      if (!user) {
+        return {
+          isValid: false,
+          error: 'User not found'
+        };
+      }
+      
+      // Return user information that other services might need
+      return {
+        isValid: true,
+        user: {
+          id: user.id,
+          universityId: user.universityId,
+          email: user.email,
+          role: user.role
+        }
+      };
+    } catch (error) {
+      return {
+        isValid: false,
+        error: error.message
+      };
     }
   }
 } 

@@ -8,32 +8,34 @@ import { UsersService } from 'src/services/users.service';
 import { Roles, Public } from '../guards/auth.guard';
 import { Role } from '@prisma/client';
 
+// getdriverrides fe ride service
+// getMyBookings rides from booking service
 
 @Resolver(() => User)
 export class UsersResolver {
   constructor(private readonly usersService: UsersService) {}
 
-  // ✅ Get all users (protected by default)
+  // Get all users (protected by default)
   @Query(() => [User], { name: 'getAllUsers' })
   @Roles(Role.ADMIN)
   async findAll() {
     return this.usersService.findAll();
   }
 
-  // ✅ Get user by ID (protected by default)
+  // Get user by ID (protected by default)
   @Query(() => User, { name: 'getUserById' })
   async findOne(@Args('universityId', { type: () => Int }) universityId: number) {
     return this.usersService.findOne(universityId);
   }
 
-  // ✅ Register a new user (public)
+  // Register a new user (public)
   @Mutation(() => User, { name: 'registerUser' })
   @Public()
   async createUser(@Args('input') input: CreateUserInput) {
     return this.usersService.create(input);
   }
 
-  // ✅ Update a user (protected by default)
+  //Update a user (protected by default)
   @Mutation(() => User, { name: 'updateUser' })
   async update(
     @Args('universityId', { type: () => Int }) universityId: number,
@@ -42,7 +44,7 @@ export class UsersResolver {
     return this.usersService.update(universityId, input);
   }
 
-  // ✅ Delete a user (admin only)
+  // Delete a user (admin only)
   @Mutation(() => Boolean, { name: 'deleteUser' })
   @Roles(Role.ADMIN)
   async remove(@Args('universityId', { type: () => Int }) universityId: number): Promise<boolean> {

@@ -5,6 +5,7 @@ import { AuthResolver } from '../resolvers/auth.resolver';
 import { UsersModule } from './users.module';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthGuard } from '../guards/auth.guard';
+import { AuthController } from '../controllers/auth.controller';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthGuard } from '../guards/auth.guard';
       signOptions: { expiresIn: '24h' },
     }),
   ],
+  controllers: [AuthController],
   providers: [
     AuthService, 
     AuthResolver,
