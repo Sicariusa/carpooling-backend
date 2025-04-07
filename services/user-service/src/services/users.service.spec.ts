@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { PrismaService } from './prisma.service';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
 import { CreateUserInput } from '../dto/create-user.input';
 import { UpdateUserInput } from '../dto/update-user.input.dto';
 import * as bcrypt from 'bcrypt';
@@ -33,11 +33,11 @@ describe('UsersService', () => {
 
   const prismaMock = {
     user: {
-      create: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
-      findMany: jest.fn().mockImplementation(() => Promise.resolve([mockUser])),
-      findUnique: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
-      update: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
-      delete: jest.fn().mockImplementation(() => Promise.resolve(mockUser)),
+      create: jest.fn().mockResolvedValue(mockUser),
+      findMany: jest.fn().mockResolvedValue([mockUser]),
+      findUnique: jest.fn(),
+      update: jest.fn().mockResolvedValue(mockUser),
+      delete: jest.fn().mockResolvedValue(mockUser),
     },
   };
 
@@ -75,9 +75,15 @@ describe('UsersService', () => {
     };
 
     it('should create a new user and hash the password', async () => {
+      // Mock findUnique to return null (user doesn't exist yet)
+      prismaMock.user.findUnique.mockResolvedValue(null);
+      
       const result = await service.create(createUserInput);
 
       expect(bcrypt.hash).toHaveBeenCalledWith(createUserInput.password, 10);
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: createUserInput.email }
+      });
       expect(prisma.user.create).toHaveBeenCalledWith({
         data: {
           universityId: createUserInput.universityId,
@@ -89,6 +95,26 @@ describe('UsersService', () => {
         }
       });
       expect(result).toEqual(mockUser);
+    });
+
+    it('should throw ConflictException if user with email already exists', async () => {
+      // Mock findUnique to return a user (indicating email already exists)
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+
+      // Use a single assertion with a try/catch block to verify both the exception type and message
+      try {
+        await service.create(createUserInput);
+        // If we reach this line, the create method didn't throw an exception
+        fail('Expected service.create to throw ConflictException');
+      } catch (error) {
+        expect(error).toBeInstanceOf(ConflictException);
+        expect(error.message).toBe(`User with email ${createUserInput.email} already exists`);
+      }
+      
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: createUserInput.email }
+      });
+      expect(prisma.user.create).not.toHaveBeenCalled();
     });
   });
 
@@ -103,6 +129,8 @@ describe('UsersService', () => {
 
   describe('findOne', () => {
     it('should return a user if found', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      
       const result = await service.findOne(123456);
 
       expect(result).toEqual(mockUser);
@@ -112,9 +140,28 @@ describe('UsersService', () => {
     });
 
     it('should throw NotFoundException if user not found', async () => {
-      prismaMock.user.findUnique.mockImplementationOnce(() => Promise.resolve(null));
+      prismaMock.user.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne(999999)).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findById', () => {
+    it('should return a user if found by ID', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(mockUser);
+      
+      const result = await service.findById('user-uuid');
+
+      expect(result).toEqual(mockUser);
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { id: 'user-uuid' }
+      });
+    });
+
+    it('should throw NotFoundException if user not found by ID', async () => {
+      prismaMock.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.findById('non-existent-id')).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -145,7 +192,7 @@ describe('UsersService', () => {
     });
 
     it('should throw NotFoundException when user not found', async () => {
-      prismaMock.user.delete.mockImplementationOnce(() => Promise.reject(new Error()));
+      prismaMock.user.delete.mockRejectedValue(new Error());
 
       await expect(service.remove(999999)).rejects.toThrow(NotFoundException);
     });

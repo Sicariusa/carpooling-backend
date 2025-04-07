@@ -34,6 +34,7 @@ describe('AuthService', () => {
   // Mock services
   const mockUsersService = {
     findOne: jest.fn(),
+    findById: jest.fn()
   };
 
   const mockJwtService = {
@@ -113,9 +114,11 @@ describe('AuthService', () => {
       expect(service.validateUser).toHaveBeenCalledWith(123456, 'password');
       expect(jwtService.sign).toHaveBeenCalledWith({
         sub: mockUser.id,
+        id: mockUser.id,
         universityId: mockUser.universityId,
         email: mockUser.email,
-        role: mockUser.role
+        role: mockUser.role,
+        phoneNumber: null
       });
     });
 
@@ -131,7 +134,7 @@ describe('AuthService', () => {
   });
 
   describe('verifyToken', () => {
-    it('should return decoded token when token is valid', () => {
+    it('should return isValid true and user payload when token is valid', () => {
       const decodedToken = { 
         sub: mockUser.id, 
         universityId: mockUser.universityId 
@@ -140,19 +143,99 @@ describe('AuthService', () => {
 
       const result = service.verifyToken('valid_token');
 
-      expect(result).toEqual(decodedToken);
+      expect(result).toEqual({
+        isValid: true,
+        user: decodedToken
+      });
       expect(jwtService.verify).toHaveBeenCalledWith('valid_token');
     });
 
-    it('should throw UnauthorizedException when token is invalid', () => {
+    it('should return isValid false and error message when token is invalid', () => {
       mockJwtService.verify.mockImplementation(() => {
         throw new Error('Invalid token');
       });
 
-      expect(() => service.verifyToken('invalid_token')).toThrow(UnauthorizedException);
-      expect(() => service.verifyToken('invalid_token')).toThrow('Invalid token');
+      const result = service.verifyToken('invalid_token');
       
+      expect(result).toEqual({
+        isValid: false,
+        error: 'Invalid token'
+      });
       expect(jwtService.verify).toHaveBeenCalledWith('invalid_token');
+    });
+  });
+
+  describe('validateToken', () => {
+    it('should strip Bearer prefix and validate token', async () => {
+      const payload = { 
+        sub: mockUser.id,
+        id: mockUser.id,
+        universityId: mockUser.universityId,
+        email: mockUser.email,
+        role: mockUser.role
+      };
+      
+      mockJwtService.verify.mockReturnValue(payload);
+      mockUsersService.findById.mockResolvedValue(mockUser);
+
+      const result = await service.validateToken('Bearer valid_token');
+
+      expect(result).toEqual({
+        isValid: true,
+        user: {
+          id: mockUser.id,
+          universityId: mockUser.universityId,
+          email: mockUser.email,
+          role: mockUser.role
+        }
+      });
+      expect(jwtService.verify).toHaveBeenCalledWith('valid_token');
+      expect(usersService.findById).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it('should handle tokens without Bearer prefix', async () => {
+      const payload = { 
+        sub: mockUser.id,
+        universityId: mockUser.universityId
+      };
+      
+      mockJwtService.verify.mockReturnValue(payload);
+      mockUsersService.findById.mockResolvedValue(mockUser);
+
+      const result = await service.validateToken('valid_token');
+
+      expect(result.isValid).toBe(true);
+      expect(jwtService.verify).toHaveBeenCalledWith('valid_token');
+    });
+
+    it('should return isValid false when user not found', async () => {
+      const payload = { 
+        sub: 'non-existent-id',
+        universityId: 999999
+      };
+      
+      mockJwtService.verify.mockReturnValue(payload);
+      mockUsersService.findById.mockResolvedValue(null);
+
+      const result = await service.validateToken('valid_token');
+
+      expect(result).toEqual({
+        isValid: false,
+        error: 'User not found'
+      });
+    });
+
+    it('should return isValid false when token is invalid', async () => {
+      mockJwtService.verify.mockImplementation(() => {
+        throw new Error('jwt expired');
+      });
+
+      const result = await service.validateToken('expired_token');
+
+      expect(result).toEqual({
+        isValid: false,
+        error: 'jwt expired'
+      });
     });
   });
 });

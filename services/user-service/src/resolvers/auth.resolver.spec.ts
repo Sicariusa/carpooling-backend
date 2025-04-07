@@ -36,7 +36,8 @@ describe('AuthResolver', () => {
   };
 
   const mockAuthService = {
-    login: jest.fn()
+    login: jest.fn(),
+    validateToken: jest.fn()
   };
 
   beforeEach(async () => {
@@ -92,6 +93,39 @@ describe('AuthResolver', () => {
 
       await expect(resolver.login(123456, 'password'))
         .rejects.toThrow('Internal server error');
+    });
+  });
+
+  describe('validateToken', () => {
+    it('should return token validation response when token is valid', async () => {
+      const validResponse = {
+        isValid: true,
+        user: {
+          id: mockUser.id,
+          universityId: mockUser.universityId,
+          email: mockUser.email,
+          role: mockUser.role
+        }
+      };
+      mockAuthService.validateToken = jest.fn().mockResolvedValue(validResponse);
+
+      const result = await resolver.validateToken('valid_token');
+
+      expect(result).toEqual(validResponse);
+      expect(authService.validateToken).toHaveBeenCalledWith('valid_token');
+    });
+
+    it('should return error when token is invalid', async () => {
+      const invalidResponse = {
+        isValid: false,
+        error: 'Invalid token'
+      };
+      mockAuthService.validateToken = jest.fn().mockResolvedValue(invalidResponse);
+
+      const result = await resolver.validateToken('invalid_token');
+
+      expect(result).toEqual(invalidResponse);
+      expect(authService.validateToken).toHaveBeenCalledWith('invalid_token');
     });
   });
 });
