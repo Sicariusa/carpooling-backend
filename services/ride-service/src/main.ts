@@ -1,48 +1,42 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
-import axios from 'axios';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
-  // ✅ Enable validation pipes
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-      transform: true,
-      forbidNonWhitelisted: true,
-      disableErrorMessages: false,
-    }),
-  );
-
-  // ✅ Enable CORS
+  
+  // Enable CORS for cross-service communication
   app.enableCors({
     origin: '*', // In production, specify your frontend URL
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
+  
+  // Apply global validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      transform: true,
+      forbidNonWhitelisted: true,
+    }),
+  );
 
-  // Kafka is now initialized in the RideService
+  // Setup Swagger documentation
+  const config = new DocumentBuilder()
+    .setTitle('Ride Service API')
+    .setDescription('API for managing rides in the carpooling system')
+    .setVersion('1.0')
+    .addTag('rides')
+    .build();
+  
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
 
-  // Add axios interceptor for debugging API calls to user service
-  axios.interceptors.request.use(request => {
-    console.log('Starting Request to User Service:', request.method, request.url);
-    return request;
-  });
-
-  axios.interceptors.response.use(response => {
-    console.log('Response from User Service:', response.status);
-    return response;
-  }, error => {
-    console.error('Error in User Service request:', error.message);
-    return Promise.reject(error);
-  });
-
-  // ✅ Start the server
-  const port = process.env.PORT ?? 3001;
+  // Start the server
+  const port = process.env.PORT || 3002;
   await app.listen(port);
-  console.log(`🚀 Ride-Service running on: ${await app.getUrl()}`);
+  console.log(`🚀 Ride Service is running on: http://localhost:${port}`);
   console.log(`📌 GraphQL Playground: http://localhost:${port}/graphql`);
 }
 bootstrap();

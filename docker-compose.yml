@@ -17,19 +17,19 @@ services:
       - carpooling-network
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.3.0
-    container_name: carpooling-zookeeper
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
     ports:
       - "2181:2181"
     networks:
-      - carpooling-network
+      - kafka-net
 
   kafka:
-    image: confluentinc/cp-kafka:7.3.0
-    container_name: carpooling-kafka
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka
     depends_on:
       - zookeeper
     ports:
@@ -42,6 +42,7 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     networks:
+      - kafka-net
       - carpooling-network
 
   user-service:
@@ -81,10 +82,10 @@ services:
       - kafka
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ride_service?schema=public
-      PORT: 3001
+      PORT: 3004
       KAFKA_BROKER: kafka:29092
     ports:
-      - "3001:3001"
+      - "3004:3004"
     volumes:
       - ./services/ride-service:/app
       - /app/node_modules
@@ -111,7 +112,7 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/booking_service?schema=public
       PORT: 3002
       KAFKA_BROKER: kafka:29092
-      RIDE_SERVICE_URL: http://ride-service:3001
+      RIDE_SERVICE_URL: http://ride-service:3004
       USER_SERVICE_URL: http://user-service:3003
     ports:
       - "3002:3002"
@@ -129,6 +130,8 @@ services:
 
 networks:
   carpooling-network:
+    driver: bridge
+  kafka-net:
     driver: bridge
 
 volumes:
