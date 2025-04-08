@@ -3,10 +3,13 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { connectConsumer, connectProducer, startConsumer, produceMessage } from '../utils/kafka';
 import { SearchRideInput } from './dto/ride.dto';
 import { RideStatus } from './ride.model';
+import { Client } from '@googlemaps/google-maps-services-js';
+import { config } from 'dotenv';
 
 @Injectable()
 export class RideService implements OnModuleInit {
   private readonly logger = new Logger(RideService.name);
+  private readonly googleMapsClient = new Client({});
 
   constructor(private prisma: PrismaService) {}
 
@@ -278,4 +281,46 @@ export class RideService implements OnModuleInit {
       return false;
     }
   }
+
+  //deg2rad function to convert degrees to radians
+  deg2rad(deg: number) {
+    return deg * (Math.PI / 180);
+  }
+
+  //function that takes 2 coordinates as input and calculates the distance between them and returns them as output
+  async calculateDistance(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }) {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = this.deg2rad(destination.lat - origin.lat);
+    const dLon = this.deg2rad(destination.lng - origin.lng);
+    const a = 
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.deg2rad(origin.lat)) * Math.cos(this.deg2rad(destination.lat)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c; // Distance in km
+  }
+
+  async calculateRoadDistance(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }): Promise<number> {
+    try {
+      const response = await this.googleMapsClient.distancematrix({
+        params: {
+          origins: [`${origin.lat},${origin.lng}`],
+          destinations: [`${destination.lat},${destination.lng}`],
+          key: process.env.GOOGLE_MAPS_API_KEY || (() => { throw new Error('GOOGLE_MAPS_API_KEY is not defined in environment variables'); })(), // Ensure API key is defined
+        },
+      });
+
+      const element = response.data.rows[0].elements[0];
+      if (element.status === 'OK' && element.distance) {
+        const distanceInMeters = element.distance.value;
+        return distanceInMeters / 1000; // Convert meters to kilometers
+      } else {
+        throw new Error(`Google Maps API error: ${element.status}`);
+      }
+    } catch (error) {
+      this.logger.error(`Error calculating road distance: ${error.message}`);
+      throw new BadRequestException('Failed to calculate road distance');
+    }
+  }
+
 }
