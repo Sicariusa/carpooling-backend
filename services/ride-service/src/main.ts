@@ -2,9 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import axios from 'axios';
+import { join } from 'path';
+import { NestExpressApplication } from '@nestjs/platform-express';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // ✅ Serve static assets (e.g., zones.json)
+  app.useStaticAssets(join(__dirname, '..', 'assets'));
 
   // ✅ Enable validation pipes
   app.useGlobalPipes(

@@ -1,214 +1,170 @@
 import { Injectable, OnModuleInit, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
-import { connectConsumer, connectProducer, startConsumer, produceMessage } from '../utils/kafka';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { Ride, RideDocument } from './ride.schema';
 import { SearchRideInput } from './dto/ride.dto';
 import { RideStatus } from './ride.model';
+import { connectConsumer, connectProducer, startConsumer, produceMessage } from '../utils/kafka';
+import * as fs from 'fs';
+import * as path from 'path';
 
 @Injectable()
 export class RideService implements OnModuleInit {
   private readonly logger = new Logger(RideService.name);
+  private zonesData: any;
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    @InjectModel(Ride.name) private rideModel: Model<RideDocument>,
+  ) {
+    const zonesPath = path.join(__dirname, '..', '..','..', 'assets', 'zones.json');
+    try {
+      const rawData = fs.readFileSync(zonesPath, 'utf-8');
+      this.logger.log('Successfully loaded zones.json');
+      this.zonesData = JSON.parse(rawData);
+    } catch (error) {
+      this.logger.error(' Failed to load zones.json:', error.message);
+      this.zonesData = null;
+    }
+  }
 
-  //  Automatically start Kafka Consumer when service initializes
   async onModuleInit() {
     try {
       this.logger.log('🟡 Initializing Kafka Consumer for Ride Service...');
       await connectConsumer();
       await connectProducer();
       await startConsumer(this); 
-      this.logger.log(' Kafka Consumer Started Successfully for Ride Service');
+      this.logger.log('✅ Kafka Consumer Started Successfully for Ride Service');
     } catch (error) {
-      this.logger.error(' Failed to initialize Kafka Consumer:', error);
+      this.logger.error('❌ Failed to initialize Kafka Consumer:', error);
     }
   }
 
-  //  Create a new ride
-  async createRide(data: { 
-    driverId: string; 
-    origin: string; 
-    destination: string; 
-    departure: Date; 
-    seatsAvailable: number; 
-    price: number;
-    isGirlsOnly?: boolean;
-    isFromGIU?: boolean;
-    isToGIU?: boolean;
-    bookingDeadline?: Date;
-    street?: string;
-  }) {
-    // Validate that the ride is either from or to GIU
+  async createRide(data: Partial<Ride>) {
     if (!data.isFromGIU && !data.isToGIU) {
       throw new BadRequestException('Ride must be either from GIU or to GIU');
     }
 
-    // Set default booking deadline if not provided (2 hours before departure)
+    if (!data.departure) {
+      throw new BadRequestException('Departure time is required');
+    }
+  
     if (!data.bookingDeadline) {
       const deadline = new Date(data.departure);
-      deadline.setHours(deadline.getHours() - 2);
+      deadline.setHours(deadline.getHours() - 1);
       data.bookingDeadline = deadline;
     }
 
-    const ride = await this.prisma.ride.create({ data });
-    
-    // Publish event about new ride creation
+    const ride = new this.rideModel(data);
+    await ride.save();
+
     await produceMessage('ride-events', {
       type: 'RIDE_CREATED',
-      rideId: ride.id,
+      rideId: ride._id,
       driverId: ride.driverId,
       seatsAvailable: ride.seatsAvailable
     });
-    
+
     return ride;
   }
 
-  //  Get all rides
   async getAllRides() {
-    return this.prisma.ride.findMany();
+    return this.rideModel.find().exec();
   }
 
-  //  Get a ride by ID
   async getRideById(id: string) {
-    const ride = await this.prisma.ride.findUnique({ where: { id } });
-    if (!ride) {
-      throw new NotFoundException(`Ride with ID ${id} not found`);
-    }
+    const ride = await this.rideModel.findById(id).exec();
+    if (!ride) throw new NotFoundException(`Ride with ID ${id} not found`);
     return ride;
   }
 
-  //  Update a ride
-  async updateRide(id: string, data: Partial<{ 
-    origin: string; 
-    destination: string; 
-    departure: Date; 
-    seatsAvailable: number; 
-    price: number;
-    isGirlsOnly: boolean;
-    status: RideStatus;
-    bookingDeadline: Date;
-    street?: string; 
-  }>) {
-    const ride = await this.getRideById(id);
-    const updatedRide = await this.prisma.ride.update({ where: { id }, data });
-    
-    // Publish event about ride update if relevant fields changed
-    if (data.seatsAvailable !== undefined || 
-        data.status !== undefined || 
-        data.departure !== undefined || 
-        data.bookingDeadline !== undefined) {
+  async updateRide(id: string, data: Partial<Ride>) {
+    const updated = await this.rideModel.findByIdAndUpdate(id, data, { new: true }).exec();
+    if (!updated) throw new NotFoundException(`Ride with ID ${id} not found`);
+
+    if (data.seatsAvailable !== undefined || data.status || data.departure || data.bookingDeadline) {
       await produceMessage('ride-events', {
         type: 'RIDE_UPDATED',
-        rideId: updatedRide.id,
-        driverId: updatedRide.driverId,
-        seatsAvailable: updatedRide.seatsAvailable,
-        status: updatedRide.status
+        rideId: updated._id,
+        driverId: updated.driverId,
+        seatsAvailable: updated.seatsAvailable,
+        status: updated.status
       });
     }
-    
-    return updatedRide;
+
+    return updated;
   }
 
-  // Delete a ride
   async deleteRide(id: string) {
-    const ride = await this.getRideById(id);
-    const deletedRide = await this.prisma.ride.delete({ where: { id } });
-    
-    // Publish event about ride deletion
+    const ride = await this.rideModel.findByIdAndDelete(id).exec();
+    if (!ride) throw new NotFoundException(`Ride with ID ${id} not found`);
+
     await produceMessage('ride-events', {
       type: 'RIDE_DELETED',
-      rideId: deletedRide.id,
-      driverId: deletedRide.driverId
+      rideId: ride._id,
+      driverId: ride.driverId
     });
-    
-    return deletedRide;
+
+    return ride;
   }
 
-  // Search for rides
   async searchRides(searchParams: SearchRideInput) {
-    const { 
-      origin, 
-      destination, 
-      isFromGIU, 
-      isToGIU, 
+    const {
+      origin,
+      destination,
+      isFromGIU,
+      isToGIU,
       isGirlsOnly,
       departureDate,
-      street 
     } = searchParams;
 
-    // Build the where clause based on search parameters
-    const where: any = {
-      status: RideStatus.PENDING, // Only show pending rides
-    };
+    const filter: any = { status: RideStatus.PENDING };
 
-    if (origin) where.origin = { contains: origin, mode: 'insensitive' }; 
-    if (destination) where.destination = { contains: destination, mode: 'insensitive' }; 
-    if (isFromGIU !== undefined) where.isFromGIU = isFromGIU;
-    if (isToGIU !== undefined) where.isToGIU = isToGIU;
-    if (isGirlsOnly !== undefined) where.isGirlsOnly = isGirlsOnly;
-    if (street) where.street = { contains: street, mode: 'insensitive' }; ;
+    if (origin) filter.origin = new RegExp(origin, 'i');
+    if (destination) filter.destination = new RegExp(destination, 'i');
+    if (isFromGIU !== undefined) filter.isFromGIU = isFromGIU;
+    if (isToGIU !== undefined) filter.isToGIU = isToGIU;
+    if (isGirlsOnly !== undefined) filter.isGirlsOnly = isGirlsOnly;
 
-    // If departure date is provided, search for rides on that day
     if (departureDate) {
-      const startOfDay = new Date(departureDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      
-      const endOfDay = new Date(departureDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      
-      where.departure = {
-        gte: startOfDay,
-        lte: endOfDay,
-      };
+      const start = new Date(departureDate);
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(departureDate);
+      end.setHours(23, 59, 59, 999);
+      filter.departure = { $gte: start, $lte: end };
     }
 
-    return this.prisma.ride.findMany({
-      where,
-      orderBy: {
-        departure: 'asc',
-      },
-    });
+    return this.rideModel.find(filter).sort({ departure: 1 }).exec();
   }
 
-  //Get rides offered by a driver
   async getDriverRides(driverId: string) {
-    return this.prisma.ride.findMany({
-      where: { driverId },
-      orderBy: { departure: 'desc' },
-    });
+    return this.rideModel.find({ driverId }).sort({ departure: -1 }).exec();
   }
 
-  // Update available seats
   async updateAvailableSeats(rideId: string, change: number) {
     const ride = await this.getRideById(rideId);
-    
-    const newSeatsAvailable = ride.seatsAvailable + change;
-    if (newSeatsAvailable < 0) {
+
+    const newSeats = ride.seatsAvailable + change;
+    if (newSeats < 0) {
       throw new BadRequestException(`Not enough seats available (current: ${ride.seatsAvailable})`);
     }
-    
-    const updatedRide = await this.prisma.ride.update({
-      where: { id: rideId },
-      data: { seatsAvailable: newSeatsAvailable },
-    });
-    
-    // Publish seat availability change event
+
+    ride.seatsAvailable = newSeats;
+    await ride.save();
+
     await produceMessage('ride-events', {
       type: 'SEATS_UPDATED',
-      rideId: updatedRide.id,
-      seatsAvailable: updatedRide.seatsAvailable
+      rideId: ride._id,
+      seatsAvailable: ride.seatsAvailable
     });
-    
-    return updatedRide;
+
+    return ride;
   }
-  
-  // Verify a booking can be made for this ride
+
   async verifyRideBooking(rideId: string, bookingId: string) {
     try {
       const ride = await this.getRideById(rideId);
-      
-      // Check if ride has available seats
+
       if (ride.seatsAvailable <= 0) {
-        // Publish booking verification result
         await produceMessage('booking-responses', {
           type: 'BOOKING_VERIFICATION_FAILED',
           rideId,
@@ -217,8 +173,7 @@ export class RideService implements OnModuleInit {
         });
         return false;
       }
-      
-      // Check if booking deadline has passed
+
       if (ride.bookingDeadline && new Date(ride.bookingDeadline) < new Date()) {
         await produceMessage('booking-responses', {
           type: 'BOOKING_VERIFICATION_FAILED',
@@ -228,8 +183,7 @@ export class RideService implements OnModuleInit {
         });
         return false;
       }
-      
-      // If all checks pass, publish success response
+
       await produceMessage('booking-responses', {
         type: 'BOOKING_VERIFICATION_SUCCESS',
         rideId,
@@ -237,27 +191,22 @@ export class RideService implements OnModuleInit {
         driverId: ride.driverId,
         seatsAvailable: ride.seatsAvailable
       });
-      
+
       return true;
     } catch (error) {
       this.logger.error(`Error verifying booking: ${error.message}`);
-      
-      // Publish error response
       await produceMessage('booking-responses', {
         type: 'BOOKING_VERIFICATION_FAILED',
         rideId,
         bookingId,
         reason: error.message
       });
-      
       return false;
     }
   }
-  
-  // Handle booking cancellation
+
   async handleBookingCancellation(rideId: string) {
     try {
-      // Increase available seats by 1
       await this.updateAvailableSeats(rideId, 1);
       return true;
     } catch (error) {
@@ -265,11 +214,9 @@ export class RideService implements OnModuleInit {
       return false;
     }
   }
-  
-  // Handle booking acceptance
+
   async handleBookingAccepted(rideId: string) {
     try {
-      // Decrease available seats by 1
       await this.updateAvailableSeats(rideId, -1);
       this.logger.log(`Seats updated for ride ${rideId} after booking acceptance`);
       return true;
