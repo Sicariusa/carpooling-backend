@@ -1,0 +1,242 @@
+{
+  "Maadi": {
+    "Maadi Corniche Route": {
+      "Maadi Corniche Entrance": {
+        "coordinates": [
+          29.97317411842256,
+          31.235816330686355
+        ],
+        "distance_to_GIU_km": 44.96,
+        "price_EGP": 224.81
+      },
+      "Nile Badrawi Hospital": {
+        "coordinates": [
+          29.982734849468056,
+          31.23123238650738
+        ],
+        "distance_to_GIU_km": 45.33,
+        "price_EGP": 226.66
+      },
+      "Maadi Grand Mall": {
+        "coordinates": [
+          29.965960797300657,
+          31.270700328297096
+        ],
+        "distance_to_GIU_km": 41.68,
+        "price_EGP": 208.41
+      }
+    },
+    "Maadi Degla Route": {
+      "Degla Square": {
+        "coordinates": [
+          29.95573087289512,
+          31.27136818835794
+        ],
+        "distance_to_GIU_km": 41.75,
+        "price_EGP": 208.76
+      },
+      "Street 9 Metro Station": {
+        "coordinates": [
+          29.960502645715213,
+          31.25843703384878
+        ],
+        "distance_to_GIU_km": 42.93,
+        "price_EGP": 214.63
+      },
+      "Victoria College": {
+        "coordinates": [
+          29.962731538445112,
+          31.272178711594364
+        ],
+        "distance_to_GIU_km": 41.58,
+        "price_EGP": 207.9
+      }
+    },
+    "Zahraa Maadi Route": {
+      "Wadi Degla Club": {
+        "coordinates": [
+          29.957884973970543,
+          31.312890613492616
+        ],
+        "distance_to_GIU_km": 37.75,
+        "price_EGP": 188.74
+      },
+      "Carrefour Maadi": {
+        "coordinates": [
+          29.98280479167007,
+          31.316580615296033
+        ],
+        "distance_to_GIU_km": 37.11,
+        "price_EGP": 185.56
+      },
+      "Al Zahraa Mosque": {
+        "coordinates": [
+          29.971977292902192,
+          31.303406593111017
+        ],
+        "distance_to_GIU_km": 38.47,
+        "price_EGP": 192.37
+      }
+    }
+  },
+  "Nasr City": {
+    "Abbas El Akkad Route": {
+      "Abbas El Akkad": {
+        "coordinates": [
+          30.056848379452887,
+          31.338797787819242
+        ],
+        "distance_to_GIU_km": 35.36,
+        "price_EGP": 176.8
+      },
+      "El Tayaran Street": {
+        "coordinates": [
+          30.053929405347372,
+          31.33407629608977
+        ],
+        "distance_to_GIU_km": 35.76,
+        "price_EGP": 178.8
+      },
+      "Al Ahly Club Nasr City": {
+        "coordinates": [
+          30.07078411466002,
+          31.35631718411813
+        ],
+        "distance_to_GIU_km": 33.99,
+        "price_EGP": 169.97
+      }
+    },
+    "Makram Ebeid Route": {
+      "Wonder Land Park": {
+        "coordinates": [
+          30.048301755892545,
+          31.337632428835793
+        ],
+        "distance_to_GIU_km": 35.33,
+        "price_EGP": 176.65
+      },
+      "City Stars Mall": {
+        "coordinates": [
+          30.072332622434622,
+          31.344974821388707
+        ],
+        "distance_to_GIU_km": 35.1,
+        "price_EGP": 175.49
+      },
+      "Makram Ebeid Police Station": {
+        "coordinates": [
+          30.0688763274653,
+          31.341730930147662
+        ],
+        "distance_to_GIU_km": 35.33,
+        "price_EGP": 176.63
+      }
+    },
+    "Mostafa El Nahas Route": {
+      "Mostafa El Nahas Street  KFC Branch": {
+        "coordinates": [
+          30.05531731237125,
+          31.342269476245004
+        ],
+        "distance_to_GIU_km": 35.0,
+        "price_EGP": 175.01
+      },
+      "Tiba Mall": {
+        "coordinates": [
+          30.06768161244072,
+          31.33016223871059
+        ],
+        "distance_to_GIU_km": 36.39,
+        "price_EGP": 181.97
+      },
+      "City Center Almaza": {
+        "coordinates": [
+          30.081418191403003,
+          31.365243038229952
+        ],
+        "distance_to_GIU_km": 33.43,
+        "price_EGP": 167.17
+      }
+    }
+  },
+  "First Settlement": {
+    "North 90th Route": {
+      "Downtown Mall": {
+        "coordinates": [
+          30.017017075077504,
+          31.412900150615258
+        ],
+        "distance_to_GIU_km": 27.77,
+        "price_EGP": 138.86
+      },
+      "Cairo Festival City": {
+        "coordinates": [
+          30.032897889823374,
+          31.409971971551304
+        ],
+        "distance_to_GIU_km": 28.19,
+        "price_EGP": 140.97
+      },
+      "AUC Gate 4": {
+        "coordinates": [
+          30.016533373947503,
+          31.500263254462794
+        ],
+        "distance_to_GIU_km": 19.35,
+        "price_EGP": 96.77
+      }
+    },
+    "South 90th Route": {
+      "Katameya Heights Entrance": {
+        "coordinates": [
+          29.993748486790693,
+          31.40397947301477
+        ],
+        "distance_to_GIU_km": 28.62,
+        "price_EGP": 143.12
+      },
+      "Americana Plaza": {
+        "coordinates": [
+          30.026358220265234,
+          31.49517168502398
+        ],
+        "distance_to_GIU_km": 19.95,
+        "price_EGP": 99.74
+      },
+      "Al Rehab Entrance 1": {
+        "coordinates": [
+          30.054024798217952,
+          31.499285830686354
+        ],
+        "distance_to_GIU_km": 20.17,
+        "price_EGP": 100.83
+      }
+    },
+    "Inside First Settlement": {
+      "Police Academy": {
+        "coordinates": [
+          30.051585645212636,
+          31.42557655226802
+        ],
+        "distance_to_GIU_km": 27.02,
+        "price_EGP": 135.1
+      },
+      "Waterway 2": {
+        "coordinates": [
+          30.029438906969627,
+          31.483120028297098
+        ],
+        "distance_to_GIU_km": 21.14,
+        "price_EGP": 105.72
+      },
+      "Future University": {
+        "coordinates": [
+          30.027335033404512,
+          31.492283599461313
+        ],
+        "distance_to_GIU_km": 20.24,
+        "price_EGP": 101.19
+      }
+    }
+  }
+}
