@@ -79,6 +79,10 @@ function handleBookingResponses(payload, bookingService) {
     case 'BOOKING_VERIFICATION_FAILED':
       bookingService.processVerificationFailure(payload.bookingId, payload.rideId, payload.reason);
       break;
+    case 'BOOKING_DESTINATION_MODIFIED':
+      logger.log(`Booking destination modified: ${payload.bookingId}`);
+      // Add logic here if other services need to process this event
+      break;
     default:
       logger.log(`Unhandled booking response type: ${payload.type}`);
   }

@@ -132,6 +132,49 @@ export class BookingService implements OnModuleInit {
       throw new BadRequestException(`Failed to reject booking: ${error.message}`);
     }
   }
+
+  async modifyBookingDestination(bookingId: string, userId: string, newDropoffLocation: string): 
+    Promise<Booking> {
+      const booking = await this.getBookingById(bookingId);
+    
+      // Ensure the booking belongs to the user
+      if (booking.userId !== userId) {
+        throw new ForbiddenException('You can only modify your own bookings');
+      }
+    
+      // Ensure the booking is not already cancelled or rejected
+      if (
+        booking.status === BookingStatus.CANCELLED ||
+        booking.status === BookingStatus.REJECTED
+      ) {
+        throw new BadRequestException('Cannot modify a cancelled or rejected booking');
+      }
+    
+      try {
+        // Update the booking in the database
+        const updatedBooking = await this.prisma.booking.update({
+          where: { id: bookingId },
+          data: {
+            dropoffLocation: newDropoffLocation,
+          },
+        });
+    
+        // Send a Kafka event for the modification
+        await produceMessage('booking-events', {
+          type: 'BOOKING_DESTINATION_MODIFIED',
+          bookingId: updatedBooking.id,
+          rideId: updatedBooking.rideId,
+          userId: updatedBooking.userId,
+          newDropoffLocation,
+        });
+    
+        logger.log(`Booking destination modified: ${updatedBooking.id}`);
+        return updatedBooking;
+      } 
+      catch (error) {
+        throw new BadRequestException(`Failed to modify booking destination: ${error.message}`);
+      }
+  }
   
   // Kafka event handlers
   
@@ -196,6 +239,7 @@ export class BookingService implements OnModuleInit {
       logger.error(`Error handling ride cancellation: ${error.message}`);
     }
   }
+  
   
   async getAllBookings() {
     return this.prisma.booking.findMany();
