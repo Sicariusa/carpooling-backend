@@ -29,6 +29,12 @@ export class CreateRideInput {
   @Min(0)
   pricePerSeat: number;
 
+  @Field(() => Float, { defaultValue: 1 })
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  priceScale: number = 1;
+
   @Field(() => Boolean, { defaultValue: false })
   @IsBoolean()
   @IsOptional()
@@ -68,6 +74,12 @@ export class UpdateRideInput {
   @IsOptional()
   @Min(0)
   pricePerSeat?: number;
+
+  @Field(() => Float, { nullable: true })
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  priceScale?: number;
 
   @Field(() => Boolean, { nullable: true })
   @IsBoolean()

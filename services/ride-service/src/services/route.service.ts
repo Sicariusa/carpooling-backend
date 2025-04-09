@@ -207,4 +207,17 @@ export class RouteService {
       };
     }).sort((a, b) => a.sequence - b.sequence);
   }
+
+  async getStopDetails(stopId: string): Promise<any> {
+    if (!Types.ObjectId.isValid(stopId)) {
+      throw new BadRequestException('Invalid stop ID');
+    }
+
+    const stop = await this.stopService.findById(stopId);
+    if (!stop) {
+      throw new NotFoundException(`Stop with ID ${stopId} not found`);
+    }
+
+    return stop;
+  }
 }

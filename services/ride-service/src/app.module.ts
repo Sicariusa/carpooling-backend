@@ -21,7 +21,8 @@ import { MiddlewareModule } from './middleware/middleware.module';
       load: [() => ({
         USER_SERVICE_URL: process.env.USER_SERVICE_URL || 'http://localhost:3000',
         BOOKING_SERVICE_URL: process.env.BOOKING_SERVICE_URL || 'http://localhost:3003',
-        NOTIFICATION_SERVICE_URL: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004'
+        NOTIFICATION_SERVICE_URL: process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004',
+        MONGODB_URI: process.env.MONGODB_URI || 'mongodb+srv://AhmedKhadrawy:pZ1war9xi3KkP5jG@database.r38ac.mongodb.net/ride-service'
       })],
     }),
     MongooseModule.forRootAsync({

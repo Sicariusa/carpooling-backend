@@ -78,12 +78,11 @@ services:
       dockerfile: Dockerfile
     container_name: carpooling-ride-service
     depends_on:
-      - postgres
       - kafka
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ride_service?schema=public
       PORT: 3004
       KAFKA_BROKER: kafka:29092
+      MONGODB_URI: mongodb://mongo:27017/ride_service
     ports:
       - "3004:3004"
     volumes:
@@ -91,12 +90,8 @@ services:
       - /app/node_modules
     networks:
       - carpooling-network
-    command: >
-      sh -c "
-        npm run prisma:generate &&
-        npm run prisma:migrate:dev &&
-        npm run start:dev
-      "
+    # Modified command to skip Prisma commands since this service uses MongoDB
+    command: npm run start:dev
 
   booking-service:
     build:
@@ -128,6 +123,17 @@ services:
         npm run start:dev
       "
 
+  # Add MongoDB service for ride-service
+  mongo:
+    image: mongo:latest
+    container_name: carpooling-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - carpooling-network
+
 networks:
   carpooling-network:
     driver: bridge
@@ -136,3 +142,4 @@ networks:
 
 volumes:
   postgres_data:
+  mongo_data:

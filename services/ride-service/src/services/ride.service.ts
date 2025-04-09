@@ -220,48 +220,60 @@ export class RideService implements OnModuleInit {
    * that are closer to GIU or to GIU itself, not to zones further away from GIU
    */
   private async verifyZoneSequence(route: any): Promise<void> {
+    // Get all stops for this route with their zones
     const stops = await this.routeService.getStopsForRoute(route._id.toString());
     
-    // Get zones and their distances from GIU for each stop in the route
-    const zoneDistances = await Promise.all(
-      stops.map(async (stop) => {
-        const zone = await this.zoneService.findById(stop.zoneId.toString());
-        return {
-          zoneId: zone._id.toString(),
-          distance: zone.distanceFromGIU,
-          sequence: stop.sequence
-        };
+    if (stops.length < 2) {
+      throw new BadRequestException('Route must have at least 2 stops');
+    }
+    
+    // Check if one stop is at GIU (distance = 0)
+    const giuZones = await this.zoneService.findZonesWithDistanceZero();
+    const giuZoneIds = giuZones.map(zone => zone._id.toString());
+    
+    // Get zones for all stops
+    const stopZones = await Promise.all(
+      stops.map(async stop => {
+        const stopData = await this.routeService.getStopDetails(stop.stopId);
+        return await this.zoneService.findById(stopData.zoneId.toString());
       })
     );
     
-    // Sort by sequence
-    zoneDistances.sort((a, b) => a.sequence - b.sequence);
+    // Check if route has a GIU stop
+    const hasGIUStop = stopZones.some(zone => zone.distanceFromGIU === 0);
     
-    // Check if the route is starting from GIU or going to GIU
+    if (!hasGIUStop) {
+      throw new BadRequestException('Route must have at least one stop at GIU');
+    }
+    
     if (route.startFromGIU) {
-      // Route starts from GIU, so the first zone should have distance = 0
-      if (zoneDistances[0].distance !== 0) {
-        throw new BadRequestException('Route starting from GIU must have GIU as the first stop');
+      // First stop should be at GIU
+      const firstStopZone = stopZones[0];
+      if (firstStopZone.distanceFromGIU !== 0) {
+        throw new BadRequestException('For routes starting from GIU, the first stop must be at GIU');
       }
       
-      // Check that subsequent zones don't get closer to GIU again
-      // i.e., distances should increase or stay the same
-      for (let i = 1; i < zoneDistances.length; i++) {
-        if (zoneDistances[i].distance < zoneDistances[i-1].distance) {
-          throw new BadRequestException('Route starting from GIU cannot go back to zones closer to GIU');
+      // Check that distances are non-decreasing
+      for (let i = 1; i < stopZones.length; i++) {
+        if (stopZones[i].distanceFromGIU < stopZones[i-1].distanceFromGIU) {
+          throw new BadRequestException(
+            'For routes starting from GIU, each stop must be at the same or further distance from GIU than the previous stop'
+          );
         }
       }
     } else {
-      // Route ends at GIU, so the last zone should have distance = 0
-      if (zoneDistances[zoneDistances.length - 1].distance !== 0) {
-        throw new BadRequestException('Route ending at GIU must have GIU as the last stop');
+      // Last stop should be at GIU
+      const lastStopZone = stopZones[stopZones.length - 1];
+      if (lastStopZone.distanceFromGIU !== 0) {
+        throw new BadRequestException('For routes ending at GIU, the last stop must be at GIU');
       }
       
-      // Check that zones get progressively closer to GIU
-      // i.e., distances should decrease or stay the same
-      for (let i = 1; i < zoneDistances.length; i++) {
-        if (zoneDistances[i].distance > zoneDistances[i-1].distance) {
-          throw new BadRequestException('Route ending at GIU must have zones getting progressively closer to GIU');
+      // Check that distances are non-increasing
+      for (let i = 1; i < stopZones.length; i++) {
+        if (stopZones[i].distanceFromGIU > stopZones[i-1].distanceFromGIU) {
+          throw new BadRequestException(
+            'For routes ending at GIU, each stop must be at the same or closer distance to GIU than the previous stop'
+          );
         }
       }
     }
@@ -272,60 +284,72 @@ export class RideService implements OnModuleInit {
       throw new BadRequestException('Invalid ride ID');
     }
     
-    // Find the ride
-    const ride = await this.findById(id);
-    
-    // Check if the user is the driver of the ride
-    if (ride.driverId !== userId) {
-      throw new BadRequestException('You can only update your own rides');
+    const ride = await this.rideModel.findById(id).exec();
+    if (!ride) {
+      throw new NotFoundException(`Ride with ID ${id} not found`);
     }
     
-    // Check if the ride is already completed or cancelled
+    // Check if the user is the owner of the ride
+    if (ride.driverId !== userId) {
+      throw new BadRequestException('You do not have permission to update this ride');
+    }
+    
+    // Ensure ride is not completed or cancelled
     if (ride.status === RideStatus.COMPLETED || ride.status === RideStatus.CANCELLED) {
       throw new BadRequestException('Cannot update a completed or cancelled ride');
     }
     
-    // Handle seat updates
-    if (updateRideInput.totalSeats !== undefined) {
-      // Cannot decrease total seats below current bookings
-      const currentBookings = ride.totalSeats - ride.availableSeats;
-      if (updateRideInput.totalSeats < currentBookings) {
-        throw new BadRequestException(`Cannot decrease total seats below current bookings (${currentBookings})`);
-      }
-      
-      // Adjust available seats if total seats changed
-      if (updateRideInput.availableSeats === undefined) {
-        updateRideInput.availableSeats = ride.availableSeats + (updateRideInput.totalSeats - ride.totalSeats);
-      }
+    // Check for price changes
+    const hasPriceChanges = 
+      (updateRideInput.pricePerSeat !== undefined && updateRideInput.pricePerSeat !== ride.pricePerSeat) ||
+      (updateRideInput.priceScale !== undefined && updateRideInput.priceScale !== ride.priceScale);
+    
+    // Validate seat changes
+    if (updateRideInput.availableSeats !== undefined && 
+        updateRideInput.totalSeats !== undefined && 
+        updateRideInput.availableSeats > updateRideInput.totalSeats) {
+      throw new BadRequestException('Available seats cannot exceed total seats');
     }
     
-    // Validate available seats
-    if (updateRideInput.availableSeats !== undefined) {
-      const totalSeats = updateRideInput.totalSeats || ride.totalSeats;
-      const currentBookings = totalSeats - ride.availableSeats;
-      
-      if (updateRideInput.availableSeats < 0) {
-        throw new BadRequestException('Available seats cannot be negative');
-      }
-      
-      if (updateRideInput.availableSeats > totalSeats - currentBookings) {
-        throw new BadRequestException(`Available seats cannot exceed total seats minus current bookings (${totalSeats - currentBookings})`);
-      }
+    if (updateRideInput.totalSeats !== undefined && 
+        updateRideInput.totalSeats < (ride.totalSeats - ride.availableSeats)) {
+      throw new BadRequestException('Cannot reduce total seats below the number of booked seats');
+    }
+    
+    // Recalculate available seats if total seats changed but available seats not specified
+    if (updateRideInput.totalSeats !== undefined && updateRideInput.availableSeats === undefined) {
+      const bookedSeats = ride.totalSeats - ride.availableSeats;
+      updateRideInput.availableSeats = updateRideInput.totalSeats - bookedSeats;
+    }
+    
+    // Ensure departure time is in the future
+    if (updateRideInput.departureTime && new Date(updateRideInput.departureTime) <= new Date()) {
+      throw new BadRequestException('Departure time must be in the future');
     }
     
     // Update the ride
     const updatedRide = await this.rideModel.findByIdAndUpdate(
       id,
       { $set: updateRideInput },
-      { new: true },
+      { new: true }
     ).exec();
+    
+    // Notify booking service about price changes if needed
+    if (hasPriceChanges && ride.bookingIds.length > 0) {
+      await this.notifyBookingService('RIDE_PRICE_UPDATED', {
+        rideId: ride._id.toString(),
+        pricePerSeat: updateRideInput.pricePerSeat || ride.pricePerSeat,
+        priceScale: updateRideInput.priceScale || ride.priceScale
+      });
+    }
     
     // Publish a ride updated event
     await produceMessage('ride-events', {
       type: 'RIDE_UPDATED',
-      rideId: updatedRide._id.toString(),
-      driverId: updatedRide.driverId,
-      updates: updateRideInput
+      rideId: id,
+      driverId: userId,
+      updatedFields: Object.keys(updateRideInput),
+      bookingIds: ride.bookingIds
     });
     
     return updatedRide;
@@ -811,6 +835,113 @@ export class RideService implements OnModuleInit {
     } catch (error: any) {
       logger.error(`Error finding user bookings: ${error.message}`);
       return [];
+    }
+  }
+
+  // Add this method after the create method
+  async calculateFareForBooking(rideId: string, pickupStopId: string, dropoffStopId: string): Promise<number> {
+    const ride = await this.findById(rideId);
+    const route = await this.routeService.findById(ride.routeId.toString());
+    const routeStops = await this.routeService.getStopsForRoute(ride.routeId.toString());
+    
+    // Find the sequence numbers for pickup and dropoff
+    const pickupStop = routeStops.find(rs => rs.stopId.toString() === pickupStopId);
+    const dropoffStop = routeStops.find(rs => rs.stopId.toString() === dropoffStopId);
+    
+    if (!pickupStop || !dropoffStop) {
+      throw new BadRequestException('Invalid pickup or dropoff stop');
+    }
+    
+    // Calculate the distance between the stops
+    let distanceCovered = 0;
+    
+    // Get all stops between pickup and dropoff (inclusive)
+    let startSeq = Math.min(pickupStop.sequence, dropoffStop.sequence);
+    let endSeq = Math.max(pickupStop.sequence, dropoffStop.sequence);
+    
+    // If we're starting from GIU, the sequence increases as we move away
+    // If we're ending at GIU, the sequence decreases as we move closer
+    const isPickupBeforeDropoff = (route.startFromGIU && pickupStop.sequence < dropoffStop.sequence) || 
+                                 (!route.startFromGIU && pickupStop.sequence > dropoffStop.sequence);
+    
+    if (!isPickupBeforeDropoff) {
+      throw new BadRequestException('Pickup must be before dropoff in the route direction');
+    }
+    
+    // Calculate base fare
+    const baseFare = ride.pricePerSeat;
+    
+    // Calculate distance factor
+    // The further from GIU, the higher the price (using priceScale as a multiplier)
+    let distanceFactor = 1.0;
+    
+    if (route.startFromGIU) {
+      // When starting from GIU, higher sequence = further away = higher price
+      distanceFactor = 1.0 + ((dropoffStop.sequence - 1) / (routeStops.length - 1)) * (ride.priceScale - 1);
+    } else {
+      // When ending at GIU, lower sequence = further away = higher price
+      distanceFactor = 1.0 + ((routeStops.length - pickupStop.sequence) / (routeStops.length - 1)) * (ride.priceScale - 1);
+    }
+    
+    // Calculate final fare
+    const finalFare = baseFare * distanceFactor;
+    
+    return Math.round(finalFare * 100) / 100; // Round to 2 decimal places
+  }
+
+  // Add this method to resolve the sequence of zones
+  private async validateAndOrderStops(routeId: string, stops: any[]): Promise<any[]> {
+    const route = await this.routeService.findById(routeId);
+    const isStartFromGIU = route.startFromGIU;
+    
+    // Get all stops with their zone information
+    const stopsWithZones = await Promise.all(
+      stops.map(async (stop) => {
+        const stopData = await this.routeService.getStopDetails(stop.stopId);
+        const zone = await this.zoneService.findById(stopData.zoneId.toString());
+        return {
+          ...stop,
+          zoneDistanceFromGIU: zone.distanceFromGIU
+        };
+      })
+    );
+    
+    // Sort stops based on distance from GIU
+    if (isStartFromGIU) {
+      // Starting from GIU: stops should be ordered by increasing distance from GIU
+      stopsWithZones.sort((a, b) => a.zoneDistanceFromGIU - b.zoneDistanceFromGIU);
+    } else {
+      // Ending at GIU: stops should be ordered by decreasing distance from GIU
+      stopsWithZones.sort((a, b) => b.zoneDistanceFromGIU - a.zoneDistanceFromGIU);
+    }
+    
+    // Update sequence numbers
+    return stopsWithZones.map((stop, index) => ({
+      ...stop,
+      sequence: index + 1
+    }));
+  }
+
+  // Add this method after the other helpers
+  private async notifyBookingService(action: string, data: any): Promise<void> {
+    try {
+      const bookingServiceUrl = process.env.BOOKING_SERVICE_URL || 'http://localhost:3003';
+      const endpoint = `${bookingServiceUrl}/api/bookings/notify`;
+      
+      await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action,
+          data
+        }),
+      });
+      
+      logger.log(`Booking service notified: ${action}`);
+    } catch (error: any) {
+      logger.error(`Failed to notify booking service: ${error.message}`);
     }
   }
 }

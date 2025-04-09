@@ -1,42 +1,59 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { AppModule } from './app.module';
+import { ConfigService } from '@nestjs/config';
+import * as dotenv from 'dotenv';
 
 async function bootstrap() {
+  dotenv.config();
+  
   const app = await NestFactory.create(AppModule);
   
-  // Enable CORS for cross-service communication
+  // Enable CORS for microservice communication
   app.enableCors({
-    origin: '*', // In production, specify your frontend URL
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: [
+      'http://localhost:3000',  // User Service
+      'http://localhost:3001',  // API Gateway
+      'http://localhost:3003',  // Booking Service
+      'http://localhost:3004',  // Payment Service
+      'http://localhost:3005',  // Notification Service
+      'http://localhost:4200',  // Frontend
+    ],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     credentials: true,
   });
   
-  // Apply global validation
+  // Create a global prefix for all routes
+  app.setGlobalPrefix('api');
+  
+  // Use validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      transform: true,
       forbidNonWhitelisted: true,
+      transform: true,
     }),
   );
-
+  
   // Setup Swagger documentation
   const config = new DocumentBuilder()
     .setTitle('Ride Service API')
-    .setDescription('API for managing rides in the carpooling system')
+    .setDescription('API documentation for the Ride Service')
     .setVersion('1.0')
-    .addTag('rides')
+    .addBearerAuth()
     .build();
-  
+    
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
-
-  // Start the server
-  const port = process.env.PORT || 3002;
+  
+  const configService = app.get(ConfigService);
+  const port = configService.get<number>('PORT') || 3002;
+  
   await app.listen(port);
-  console.log(`🚀 Ride Service is running on: http://localhost:${port}`);
-  console.log(`📌 GraphQL Playground: http://localhost:${port}/graphql`);
+  console.log(`Ride service running on port ${port}`);
+  console.log(`GraphQL Playground: http://localhost:${port}/graphql`);
+  console.log(`MongoDB URI: ${configService.get<string>('MONGODB_URI')}`);
 }
+
 bootstrap();

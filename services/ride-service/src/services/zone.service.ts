@@ -91,4 +91,8 @@ export class ZoneService {
     // Otherwise, we can only go to zones closer to GIU
     return fromZone.distanceFromGIU > toZone.distanceFromGIU;
   }
+
+  async findZonesWithDistanceZero(): Promise<Zone[]> {
+    return this.zoneModel.find({ distanceFromGIU: 0 }).exec();
+  }
 }

@@ -54,6 +54,10 @@ export class Ride {
   @Prop({ required: true, min: 0 })
   pricePerSeat: number;
 
+  @Field(() => Float)
+  @Prop({ required: true, min: 1, default: 1 })
+  priceScale: number; // Multiplier for price based on distance (further stops pay more)
+
   @Field(() => Boolean)
   @Prop({ default: false })
   girlsOnly: boolean;

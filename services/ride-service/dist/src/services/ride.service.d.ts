@@ -1,0 +1,37 @@
+import { OnModuleInit } from '@nestjs/common';
+import { Model } from 'mongoose';
+import { Ride, RideDocument } from '../schemas/ride.schema';
+import { CreateRideInput, SearchRideInput, UpdateRideInput } from '../dto/ride.dto';
+import { RouteService } from './route.service';
+import { ZoneService } from './zone.service';
+export declare class RideService implements OnModuleInit {
+    private rideModel;
+    private routeService;
+    private zoneService;
+    constructor(rideModel: Model<RideDocument>, routeService: RouteService, zoneService: ZoneService);
+    onModuleInit(): Promise<void>;
+    findAll(): Promise<Ride[]>;
+    findById(id: string): Promise<Ride>;
+    findByDriver(driverId: string): Promise<Ride[]>;
+    searchRides(searchInput: SearchRideInput): Promise<Ride[]>;
+    create(createRideInput: CreateRideInput, driverId: string): Promise<Ride>;
+    private isRouteEndingAtGIU;
+    private verifyZoneSequence;
+    update(id: string, updateRideInput: UpdateRideInput, userId: string): Promise<Ride>;
+    cancelRide(id: string, userId: string): Promise<Ride>;
+    setBookingDeadline(rideId: string, minutesBeforeDeparture: number, userId: string): Promise<Ride>;
+    getRouteForRide(rideId: string): Promise<any>;
+    verifyRideBooking(bookingId: string, rideId: string, userId: string): Promise<void>;
+    handleBookingCancellation(bookingId: string, rideId: string, userId: string): Promise<void>;
+    handleBookingAcceptance(bookingId: string, rideId: string, driverId: string): Promise<void>;
+    handleBookingRejection(bookingId: string, rideId: string, driverId: string): Promise<void>;
+    handleDestinationChange(bookingId: string, rideId: string, userId: string, newDropoffLocation: string): Promise<void>;
+    handleUserVerification(userId: string, isDriver: boolean): Promise<void>;
+    handleDriverApproval(userId: string): Promise<void>;
+    private checkUserGender;
+    findRideHistory(userId: string): Promise<Ride[]>;
+    findUserBookings(userId: string): Promise<Ride[]>;
+    calculateFareForBooking(rideId: string, pickupStopId: string, dropoffStopId: string): Promise<number>;
+    private validateAndOrderStops;
+    private notifyBookingService;
+}

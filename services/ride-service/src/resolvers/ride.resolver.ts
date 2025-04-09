@@ -27,6 +27,16 @@ export class RideResolver {
     return this.rideService.searchRides(searchInput);
   }
 
+  @Query(() => Number)
+  @UseGuards(AuthGuard)
+  async calculateFare(
+    @Args('rideId', { type: () => ID }) rideId: string,
+    @Args('pickupStopId', { type: () => ID }) pickupStopId: string,
+    @Args('dropoffStopId', { type: () => ID }) dropoffStopId: string
+  ) {
+    return this.rideService.calculateFareForBooking(rideId, pickupStopId, dropoffStopId);
+  }
+
   @Query(() => [Ride])
   @UseGuards(AuthGuard, RoleGuard)
   @Roles('DRIVER')

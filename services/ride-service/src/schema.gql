@@ -14,6 +14,7 @@ input CreateRideInput {
   endLocation: String!
   girlsOnly: Boolean! = false
   pricePerSeat: Float!
+  priceScale: Float! = 1
   routeId: ID!
   startLocation: String!
   totalSeats: Int!
@@ -69,6 +70,7 @@ type Mutation {
 }
 
 type Query {
+  calculateFare(dropoffStopId: ID!, pickupStopId: ID!, rideId: ID!): Float!
   myBookings: [Ride!]!
   myRideHistory: [Ride!]!
   myRides: [Ride!]!
@@ -95,6 +97,7 @@ type Ride {
   endLocation: String!
   girlsOnly: Boolean!
   pricePerSeat: Float!
+  priceScale: Float!
   route: Route!
   routeId: ID!
   startLocation: String!
@@ -156,6 +159,7 @@ input UpdateRideInput {
   departureTime: DateTime
   girlsOnly: Boolean
   pricePerSeat: Float
+  priceScale: Float
   status: RideStatus
   totalSeats: Int
 }
