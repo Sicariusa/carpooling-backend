@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, OnModuleInit, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { CreateBookingInput, BookingStatus } from '../dto/booking.dto';
 import { PrismaService } from './prisma.service';
-import { connectConsumer, startConsumer, produceMessage } from '../utils/kafka';
+import { connectConsumer, startConsumer, produceMessage, requestRideData } from '../utils/kafka';
 import { Booking } from '@prisma/client';
 
 const logger = new Logger('BookingService');
@@ -25,14 +25,47 @@ export class BookingService implements OnModuleInit {
 
   async BookRide(data: CreateBookingInput, userId: string): Promise<Booking> {
     try {
+      // Fetch ride info using Kafka
+      let rideInfo;
+      try {
+        rideInfo = await requestRideData('GET_RIDE', { rideId: data.rideId });
+      } catch (error) {
+        throw new BadRequestException(`Ride not found or not available: ${error.message}`);
+      }
+      
+      // Calculate fare using Kafka
+      let fare = 0;
+      try {
+        fare = await requestRideData('CALCULATE_FARE', { 
+          rideId: data.rideId, 
+          pickupStopId: data.pickupStopId, 
+          dropoffStopId: data.dropoffStopId 
+        }) as number;
+      } catch (error) {
+        throw new BadRequestException(`Failed to calculate fare: ${error.message}`);
+      }
+      
+      // Get stop details for pickup and dropoff locations using Kafka
+      let pickupStop, dropoffStop;
+      try {
+        pickupStop = await requestRideData('GET_STOP', { stopId: data.pickupStopId });
+        dropoffStop = await requestRideData('GET_STOP', { stopId: data.dropoffStopId });
+      } catch (error) {
+        throw new BadRequestException(`Failed to get stop details: ${error.message}`);
+      }
+      
       // Create a booking with PENDING status
       const booking = await this.prisma.booking.create({
         data: {
           userId: userId,
+          passengerId: userId,
           rideId: data.rideId,
           status: BookingStatus.PENDING,
-          pickupLocation: data.pickupLocation,
-          dropoffLocation: data.dropoffLocation,
+          pickupStopId: data.pickupStopId,
+          dropoffStopId: data.dropoffStopId,
+          pickupLocation: pickupStop.name || 'Unknown location',
+          dropoffLocation: dropoffStop.name || 'Unknown location',
+          price: fare
         } as any, // Type assertion to avoid type error
       });
       

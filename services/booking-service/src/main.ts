@@ -51,7 +51,7 @@ async function bootstrap() {
   // Kafka is now initialized in the BookingService
 
   // Start the server
-  const port = process.env.PORT || 3002;
+  const port = process.env.PORT || 3001;
   await app.listen(port);
   console.log(`🚀 Booking Service is running on: http://localhost:${port}`);
   console.log(`📌 GraphQL Playground: http://localhost:${port}/graphql`);

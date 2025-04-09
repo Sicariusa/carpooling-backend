@@ -89,4 +89,9 @@ export class UsersService {
       throw new NotFoundException(`User with university ID ${universityId} not found`);
     }
   }
+
+  async findByUuid(id: string) {
+    return this.prisma.user.findUnique({ where: { id } });
+  }
+  
 }

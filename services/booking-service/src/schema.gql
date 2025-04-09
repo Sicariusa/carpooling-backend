@@ -7,8 +7,11 @@ type Booking {
   userId: ID!
   rideId: ID!
   status: BookingStatus!
+  pickupStopId: ID
+  dropoffStopId: ID
   pickupLocation: String!
   dropoffLocation: String!
+  price: Float
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -42,7 +45,7 @@ type Mutation {
 input CreateBookingInput {
   userId: ID
   rideId: ID!
-  pickupLocation: String!
-  dropoffLocation: String!
+  pickupStopId: ID!
+  dropoffStopId: ID!
   status: BookingStatus
 }
