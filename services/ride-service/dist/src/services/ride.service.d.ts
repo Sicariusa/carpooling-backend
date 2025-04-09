@@ -36,4 +36,5 @@ export declare class RideService implements OnModuleInit {
     modifyDropoffLocation(bookingId: string, rideId: string, userId: string, newDropoffLocation: string): Promise<boolean>;
     handlePaymentCompleted(bookingId: string, rideId: string, userId: string): Promise<void>;
     handlePaymentFailed(bookingId: string, rideId: string, userId: string): Promise<void>;
+    getStopDetails(stopId: string): Promise<any>;
 }

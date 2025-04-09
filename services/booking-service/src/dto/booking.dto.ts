@@ -1,4 +1,4 @@
-import { Field, InputType, ID, registerEnumType } from '@nestjs/graphql';
+import { Field, InputType, ID, registerEnumType, Float } from '@nestjs/graphql';
 import { IsString, IsOptional, IsNotEmpty, IsEnum } from 'class-validator';
 
 export enum BookingStatus {
@@ -25,15 +25,15 @@ export class CreateBookingInput {
   @IsString()
   rideId: string; // The ID of the ride being booked
 
-  @Field()
+  @Field(() => ID)
   @IsNotEmpty()
   @IsString()
-  pickupLocation: string; // The pickup location (required)
+  pickupStopId: string; // The ID of the pickup stop
 
-  @Field()
+  @Field(() => ID)
   @IsNotEmpty()
   @IsString()
-  dropoffLocation: string; // The dropoff location (required)
+  dropoffStopId: string; // The ID of the dropoff stop
 
   @Field(() => BookingStatus, { nullable: true })
   @IsOptional()

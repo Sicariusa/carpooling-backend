@@ -984,8 +984,12 @@ export class RideService implements OnModuleInit {
       
       // Determine if the pickup is before dropoff based on the ride direction
       const isStartFromGIU = ride.startFromGIU;
-      const isPickupBeforeDropoff = (isStartFromGIU && pickupStop.sequence < dropoffStop.sequence) || 
-                                   (!isStartFromGIU && pickupStop.sequence > dropoffStop.sequence);
+
+      // Logic fix: 
+      // If ride starts from GIU, passengers should move from lower sequence to higher sequence
+      // If ride ends at GIU, passengers should move from lower sequence to higher sequence as well
+      // (The sequence numbers should always increase in the direction of travel, regardless of startFromGIU)
+      const isPickupBeforeDropoff = pickupStop.sequence < dropoffStop.sequence;
       
       if (!isPickupBeforeDropoff) {
         throw new BadRequestException('Pickup must be before dropoff in the route direction');
@@ -1254,6 +1258,20 @@ export class RideService implements OnModuleInit {
       } else {
         logger.error('Unknown error handling payment failure');
       }
+    }
+  }
+
+  // Add this method to get stop details
+  async getStopDetails(stopId: string): Promise<any> {
+    try {
+      return this.stopService.findById(stopId);
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(`Error getting stop details: ${error.message}`);
+      } else {
+        logger.error('Unknown error getting stop details');
+      }
+      throw error;
     }
   }
 }

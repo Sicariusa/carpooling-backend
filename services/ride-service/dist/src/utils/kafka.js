@@ -21,6 +21,7 @@ async function connectConsumer() {
     await consumer.subscribe({ topic: 'booking-events', fromBeginning: true });
     await consumer.subscribe({ topic: 'user-events', fromBeginning: true });
     await consumer.subscribe({ topic: 'payment-events', fromBeginning: true });
+    await consumer.subscribe({ topic: 'ride-data-requests', fromBeginning: true });
     logger.log('Kafka consumer connected and subscribed to required topics');
 }
 async function startConsumer(rideService) {
@@ -39,6 +40,9 @@ async function startConsumer(rideService) {
                     else if (topic === 'payment-events') {
                         handlePaymentEvents(payload, rideService);
                     }
+                    else if (topic === 'ride-data-requests') {
+                        handleRideDataRequests(payload, rideService);
+                    }
                 }
                 catch (error) {
                     logger.error('Error processing Kafka message:', error);
@@ -50,6 +54,40 @@ async function startConsumer(rideService) {
     catch (error) {
         logger.error(`Failed to start Kafka consumer: ${error.message}`);
         throw error;
+    }
+}
+async function handleRideDataRequests(payload, rideService) {
+    const { requestId, type, params } = payload;
+    try {
+        let responseData;
+        switch (type) {
+            case 'GET_RIDE':
+                responseData = await rideService.findById(params.rideId);
+                break;
+            case 'CALCULATE_FARE':
+                responseData = await rideService.calculateFareForBooking(params.rideId, params.pickupStopId, params.dropoffStopId);
+                break;
+            case 'GET_STOP':
+                responseData = await rideService.getStopDetails(params.stopId);
+                break;
+            default:
+                throw new Error(`Unknown ride data request type: ${type}`);
+        }
+        await produceMessage('ride-data-responses', {
+            requestId,
+            type,
+            data: responseData,
+            timestamp: new Date().toISOString()
+        });
+    }
+    catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        await produceMessage('ride-data-responses', {
+            requestId,
+            type,
+            error: errorMessage,
+            timestamp: new Date().toISOString()
+        });
     }
 }
 function handleBookingEvents(payload, rideService) {

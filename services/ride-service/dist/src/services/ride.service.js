@@ -654,8 +654,7 @@ let RideService = class RideService {
             const pickupZone = await this.zoneService.findById(pickupStopDetails.zoneId.toString());
             const dropoffZone = await this.zoneService.findById(dropoffStopDetails.zoneId.toString());
             const isStartFromGIU = ride.startFromGIU;
-            const isPickupBeforeDropoff = (isStartFromGIU && pickupStop.sequence < dropoffStop.sequence) ||
-                (!isStartFromGIU && pickupStop.sequence > dropoffStop.sequence);
+            const isPickupBeforeDropoff = pickupStop.sequence < dropoffStop.sequence;
             if (!isPickupBeforeDropoff) {
                 throw new common_1.BadRequestException('Pickup must be before dropoff in the route direction');
             }
@@ -854,6 +853,20 @@ let RideService = class RideService {
             else {
                 logger.error('Unknown error handling payment failure');
             }
+        }
+    }
+    async getStopDetails(stopId) {
+        try {
+            return this.stopService.findById(stopId);
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                logger.error(`Error getting stop details: ${error.message}`);
+            }
+            else {
+                logger.error('Unknown error getting stop details');
+            }
+            throw error;
         }
     }
 };
