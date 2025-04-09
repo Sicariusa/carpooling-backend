@@ -44,9 +44,9 @@ __decorate([
     __metadata("design:type", String)
 ], CreateStopInput.prototype, "zoneId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => Boolean, { nullable: true }),
-    (0, class_validator_1.IsOptional)(),
+    (0, graphql_1.Field)(() => Boolean, { nullable: true, defaultValue: true }),
     (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], CreateStopInput.prototype, "isActive", void 0);
 exports.CreateStopInput = CreateStopInput = __decorate([
@@ -87,8 +87,8 @@ __decorate([
 ], UpdateStopInput.prototype, "zoneId", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Boolean, { nullable: true }),
-    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
     __metadata("design:type", Boolean)
 ], UpdateStopInput.prototype, "isActive", void 0);
 exports.UpdateStopInput = UpdateStopInput = __decorate([

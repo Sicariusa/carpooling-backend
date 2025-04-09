@@ -1,13 +1,28 @@
 import { InputType, Field, Int, Float, ID, registerEnumType } from '@nestjs/graphql';
-import { IsDate, IsString, IsNumber, IsBoolean, IsOptional, Min, Max, IsEnum, IsUUID } from 'class-validator';
+import { IsDate, IsString, IsNumber, IsBoolean, IsOptional, Min, Max, IsEnum, IsArray, ArrayMinSize, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { RideStatus } from '../schemas/ride.schema';
 
 @InputType()
-export class CreateRideInput {
+export class RideStopInput {
   @Field(() => ID)
   @IsString()
-  routeId: string;
+  stopId: string;
+
+  @Field(() => Int)
+  @IsNumber()
+  @Min(1)
+  sequence: number;
+}
+
+@InputType()
+export class CreateRideInput {
+  @Field(() => [RideStopInput])
+  @IsArray()
+  @ArrayMinSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => RideStopInput)
+  stops: RideStopInput[];
 
   @Field()
   @IsDate()
@@ -51,6 +66,14 @@ export class CreateRideInput {
 
 @InputType()
 export class UpdateRideInput {
+  @Field(() => [RideStopInput], { nullable: true })
+  @IsArray()
+  @ArrayMinSize(2)
+  @ValidateNested({ each: true })
+  @Type(() => RideStopInput)
+  @IsOptional()
+  stops?: RideStopInput[];
+
   @Field(() => Date, { nullable: true })
   @IsDate()
   @IsOptional()
@@ -139,4 +162,19 @@ export class BookingDeadlineInput {
   @Min(30)
   @Max(1440) // Max 24 hours
   minutesBeforeDeparture: number;
+}
+
+@InputType()
+export class ModifyDestinationInput {
+  @Field(() => ID)
+  @IsString()
+  bookingId: string;
+  
+  @Field(() => ID)
+  @IsString()
+  rideId: string;
+  
+  @Field()
+  @IsString()
+  newDropoffLocation: string;
 }

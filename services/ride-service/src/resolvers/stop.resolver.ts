@@ -1,12 +1,12 @@
 import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
 import { Stop } from '../schemas/stop.schema';
-import { Zone } from '../schemas/zone.schema';
 import { StopService } from '../services/stop.service';
 import { CreateStopInput, UpdateStopInput } from '../dto/stop.dto';
-import { UseGuards } from '@nestjs/common';
-import { Roles } from '../decorators/roles.decorator';
 import { AuthGuard } from '../guards/auth.guard';
 import { RoleGuard } from '../guards/role.guard';
+import { Roles } from '../decorators/roles.decorator';
+import { Zone } from '../schemas/zone.schema';
 
 @Resolver(() => Stop)
 export class StopResolver {
@@ -39,7 +39,7 @@ export class StopResolver {
   @Roles('ADMIN')
   async updateStop(
     @Args('id', { type: () => ID }) id: string,
-    @Args('input') input: UpdateStopInput,
+    @Args('input') input: UpdateStopInput
   ) {
     return this.stopService.update(id, input);
   }
@@ -55,4 +55,4 @@ export class StopResolver {
   async zone(@Parent() stop: Stop) {
     return this.stopService.getZoneForStop(stop._id.toString());
   }
-}
+} 

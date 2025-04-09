@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Field, ID, ObjectType, Float } from '@nestjs/graphql';
-import { Zone } from './zone.schema';
 
 export type StopDocument = Stop & Document;
 
@@ -28,11 +27,8 @@ export class Stop {
   longitude: number;
 
   @Field(() => ID)
-  @Prop({ type: Types.ObjectId, ref: 'Zone', required: true })
+  @Prop({ type: Types.ObjectId, required: true })
   zoneId: Types.ObjectId;
-
-  @Field(() => Zone)
-  zone: Zone;
 
   @Field(() => Boolean)
   @Prop({ default: true })
@@ -45,4 +41,4 @@ export class Stop {
   updatedAt: Date;
 }
 
-export const StopSchema = SchemaFactory.createForClass(Stop);
+export const StopSchema = SchemaFactory.createForClass(Stop); 

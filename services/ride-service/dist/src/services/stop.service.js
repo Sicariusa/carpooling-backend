@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StopService = void 0;
 const common_1 = require("@nestjs/common");
@@ -41,11 +40,18 @@ let StopService = class StopService {
         if (!mongoose_2.Types.ObjectId.isValid(zoneId)) {
             throw new common_1.BadRequestException('Invalid zone ID');
         }
-        return this.stopModel.find({ zoneId, isActive: true }).exec();
+        await this.zoneService.findById(zoneId);
+        return this.stopModel.find({
+            zoneId: new mongoose_2.Types.ObjectId(zoneId),
+            isActive: true
+        }).exec();
     }
     async create(createStopInput) {
         await this.zoneService.findById(createStopInput.zoneId);
-        const createdStop = new this.stopModel(createStopInput);
+        const createdStop = new this.stopModel({
+            ...createStopInput,
+            zoneId: new mongoose_2.Types.ObjectId(createStopInput.zoneId)
+        });
         return createdStop.save();
     }
     async update(id, updateStopInput) {
@@ -54,6 +60,16 @@ let StopService = class StopService {
         }
         if (updateStopInput.zoneId) {
             await this.zoneService.findById(updateStopInput.zoneId);
+            const { zoneId, ...restInput } = updateStopInput;
+            const updatedInput = {
+                ...restInput,
+                zoneId: new mongoose_2.Types.ObjectId(zoneId)
+            };
+            const updatedStop = await this.stopModel.findByIdAndUpdate(id, { $set: updatedInput }, { new: true }).exec();
+            if (!updatedStop) {
+                throw new common_1.NotFoundException(`Stop with ID ${id} not found`);
+            }
+            return updatedStop;
         }
         const updatedStop = await this.stopModel.findByIdAndUpdate(id, { $set: updateStopInput }, { new: true }).exec();
         if (!updatedStop) {
@@ -80,6 +96,7 @@ exports.StopService = StopService;
 exports.StopService = StopService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(stop_schema_1.Stop.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, zone_service_1.ZoneService])
+    __metadata("design:paramtypes", [mongoose_2.Model,
+        zone_service_1.ZoneService])
 ], StopService);
 //# sourceMappingURL=stop.service.js.map

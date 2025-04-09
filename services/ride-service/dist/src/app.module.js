@@ -17,7 +17,6 @@ const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const ride_module_1 = require("./modules/ride.module");
 const zone_module_1 = require("./modules/zone.module");
-const route_module_1 = require("./modules/route.module");
 const stop_module_1 = require("./modules/stop.module");
 const middleware_module_1 = require("./middleware/middleware.module");
 let AppModule = class AppModule {
@@ -52,7 +51,6 @@ exports.AppModule = AppModule = __decorate([
             }),
             ride_module_1.RideModule,
             zone_module_1.ZoneModule,
-            route_module_1.RouteModule,
             stop_module_1.StopModule,
             middleware_module_1.MiddlewareModule,
         ],

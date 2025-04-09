@@ -1,6 +1,10 @@
 import { RideStatus } from '../schemas/ride.schema';
+export declare class RideStopInput {
+    stopId: string;
+    sequence: number;
+}
 export declare class CreateRideInput {
-    routeId: string;
+    stops: RideStopInput[];
     departureTime: Date;
     totalSeats: number;
     availableSeats: number;
@@ -11,6 +15,7 @@ export declare class CreateRideInput {
     endLocation: string;
 }
 export declare class UpdateRideInput {
+    stops?: RideStopInput[];
     departureTime?: Date;
     totalSeats?: number;
     availableSeats?: number;
@@ -30,4 +35,9 @@ export declare class SearchRideInput {
 export declare class BookingDeadlineInput {
     rideId: string;
     minutesBeforeDeparture: number;
+}
+export declare class ModifyDestinationInput {
+    bookingId: string;
+    rideId: string;
+    newDropoffLocation: string;
 }

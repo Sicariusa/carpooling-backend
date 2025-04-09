@@ -16,7 +16,6 @@ exports.RideResolver = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const common_1 = require("@nestjs/common");
 const ride_schema_1 = require("../schemas/ride.schema");
-const route_schema_1 = require("../schemas/route.schema");
 const ride_service_1 = require("../services/ride.service");
 const ride_dto_1 = require("../dto/ride.dto");
 const auth_guard_1 = require("../guards/auth.guard");
@@ -60,8 +59,7 @@ let RideResolver = class RideResolver {
     }
     async setRideGirlsOnly(id, girlsOnly, context) {
         const { user } = context.req;
-        const updateInput = { girlsOnly };
-        return this.rideService.update(id, updateInput, user.id);
+        return this.rideService.setGirlsOnly(id, girlsOnly, user.id);
     }
     async cancelRide(id, context) {
         const { user } = context.req;
@@ -71,8 +69,17 @@ let RideResolver = class RideResolver {
         const { user } = context.req;
         return this.rideService.setBookingDeadline(input.rideId, input.minutesBeforeDeparture, user.id);
     }
-    async route(ride) {
-        return this.rideService.getRouteForRide(ride._id.toString());
+    async acceptBookingRequest(bookingId, rideId, context) {
+        const { user } = context.req;
+        return this.rideService.acceptBookingRequest(bookingId, rideId, user.id);
+    }
+    async rejectBookingRequest(bookingId, rideId, context) {
+        const { user } = context.req;
+        return this.rideService.rejectBookingRequest(bookingId, rideId, user.id);
+    }
+    async modifyDropoffLocation(input, context) {
+        const { user } = context.req;
+        return this.rideService.modifyDropoffLocation(input.bookingId, input.rideId, user.id, input.newDropoffLocation);
     }
 };
 exports.RideResolver = RideResolver;
@@ -184,12 +191,36 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], RideResolver.prototype, "setBookingDeadline", null);
 __decorate([
-    (0, graphql_1.ResolveField)(() => route_schema_1.Route),
-    __param(0, (0, graphql_1.Parent)()),
+    (0, graphql_1.Mutation)(() => ride_schema_1.Ride),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard, role_guard_1.RoleGuard),
+    (0, roles_decorator_1.Roles)('DRIVER'),
+    __param(0, (0, graphql_1.Args)('bookingId', { type: () => graphql_1.ID })),
+    __param(1, (0, graphql_1.Args)('rideId', { type: () => graphql_1.ID })),
+    __param(2, (0, graphql_1.Context)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [ride_schema_1.Ride]),
+    __metadata("design:paramtypes", [String, String, Object]),
     __metadata("design:returntype", Promise)
-], RideResolver.prototype, "route", null);
+], RideResolver.prototype, "acceptBookingRequest", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => ride_schema_1.Ride),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard, role_guard_1.RoleGuard),
+    (0, roles_decorator_1.Roles)('DRIVER'),
+    __param(0, (0, graphql_1.Args)('bookingId', { type: () => graphql_1.ID })),
+    __param(1, (0, graphql_1.Args)('rideId', { type: () => graphql_1.ID })),
+    __param(2, (0, graphql_1.Context)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, String, Object]),
+    __metadata("design:returntype", Promise)
+], RideResolver.prototype, "rejectBookingRequest", null);
+__decorate([
+    (0, graphql_1.Mutation)(() => Boolean),
+    (0, common_1.UseGuards)(auth_guard_1.AuthGuard),
+    __param(0, (0, graphql_1.Args)('input')),
+    __param(1, (0, graphql_1.Context)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [ride_dto_1.ModifyDestinationInput, Object]),
+    __metadata("design:returntype", Promise)
+], RideResolver.prototype, "modifyDropoffLocation", null);
 exports.RideResolver = RideResolver = __decorate([
     (0, graphql_1.Resolver)(() => ride_schema_1.Ride),
     __metadata("design:paramtypes", [ride_service_1.RideService])

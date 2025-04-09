@@ -8,13 +8,11 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RideSchema = exports.Ride = exports.RideStatus = void 0;
+exports.RideSchema = exports.Ride = exports.RideStop = exports.RideStatus = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const graphql_1 = require("@nestjs/graphql");
-const route_schema_1 = require("./route.schema");
 var RideStatus;
 (function (RideStatus) {
     RideStatus["SCHEDULED"] = "SCHEDULED";
@@ -26,12 +24,28 @@ var RideStatus;
     name: 'RideStatus',
     description: 'Status of a ride',
 });
+let RideStop = class RideStop {
+};
+exports.RideStop = RideStop;
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID),
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, required: true }),
+    __metadata("design:type", mongoose_2.Types.ObjectId)
+], RideStop.prototype, "stopId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.Int),
+    (0, mongoose_1.Prop)({ required: true, min: 1 }),
+    __metadata("design:type", Number)
+], RideStop.prototype, "sequence", void 0);
+exports.RideStop = RideStop = __decorate([
+    (0, graphql_1.ObjectType)()
+], RideStop);
 let Ride = class Ride {
 };
 exports.Ride = Ride;
 __decorate([
     (0, graphql_1.Field)(() => graphql_1.ID),
-    __metadata("design:type", typeof (_a = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _a : Object)
+    __metadata("design:type", mongoose_2.Types.ObjectId)
 ], Ride.prototype, "_id", void 0);
 __decorate([
     (0, graphql_1.Field)(() => graphql_1.ID),
@@ -39,14 +53,15 @@ __decorate([
     __metadata("design:type", String)
 ], Ride.prototype, "driverId", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID),
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Route', required: true }),
-    __metadata("design:type", typeof (_b = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _b : Object)
-], Ride.prototype, "routeId", void 0);
+    (0, graphql_1.Field)(() => [RideStop]),
+    (0, mongoose_1.Prop)({ type: [Object], required: true }),
+    __metadata("design:type", Array)
+], Ride.prototype, "stops", void 0);
 __decorate([
-    (0, graphql_1.Field)(() => route_schema_1.Route),
-    __metadata("design:type", route_schema_1.Route)
-], Ride.prototype, "route", void 0);
+    (0, graphql_1.Field)(() => Boolean),
+    (0, mongoose_1.Prop)({ required: true }),
+    __metadata("design:type", Boolean)
+], Ride.prototype, "startFromGIU", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     (0, mongoose_1.Prop)({ required: true }),

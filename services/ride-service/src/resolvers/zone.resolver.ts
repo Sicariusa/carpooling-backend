@@ -1,11 +1,11 @@
 import { Resolver, Query, Mutation, Args, ID } from '@nestjs/graphql';
+import { UseGuards } from '@nestjs/common';
 import { Zone } from '../schemas/zone.schema';
 import { ZoneService } from '../services/zone.service';
 import { CreateZoneInput, UpdateZoneInput } from '../dto/zone.dto';
-import { UseGuards } from '@nestjs/common';
-import { Roles } from '../decorators/roles.decorator';
 import { AuthGuard } from '../guards/auth.guard';
 import { RoleGuard } from '../guards/role.guard';
+import { Roles } from '../decorators/roles.decorator';
 
 @Resolver(() => Zone)
 export class ZoneResolver {
@@ -33,7 +33,7 @@ export class ZoneResolver {
   @Roles('ADMIN')
   async updateZone(
     @Args('id', { type: () => ID }) id: string,
-    @Args('input') input: UpdateZoneInput,
+    @Args('input') input: UpdateZoneInput
   ) {
     return this.zoneService.update(id, input);
   }
@@ -44,4 +44,4 @@ export class ZoneResolver {
   async removeZone(@Args('id', { type: () => ID }) id: string) {
     return this.zoneService.remove(id);
   }
-}
+} 

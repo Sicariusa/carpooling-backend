@@ -20,6 +20,7 @@ async function connectConsumer() {
     await producer.connect();
     await consumer.subscribe({ topic: 'booking-events', fromBeginning: true });
     await consumer.subscribe({ topic: 'user-events', fromBeginning: true });
+    await consumer.subscribe({ topic: 'payment-events', fromBeginning: true });
     logger.log('Kafka consumer connected and subscribed to required topics');
 }
 async function startConsumer(rideService) {
@@ -34,6 +35,9 @@ async function startConsumer(rideService) {
                     }
                     else if (topic === 'user-events') {
                         handleUserEvents(payload, rideService);
+                    }
+                    else if (topic === 'payment-events') {
+                        handlePaymentEvents(payload, rideService);
                     }
                 }
                 catch (error) {
@@ -79,6 +83,18 @@ function handleUserEvents(payload, rideService) {
             break;
         default:
             logger.log(`Unhandled user event type: ${payload.event || payload.type}`);
+    }
+}
+function handlePaymentEvents(payload, rideService) {
+    switch (payload.type) {
+        case 'PAYMENT_COMPLETED':
+            rideService.handlePaymentCompleted(payload.bookingId, payload.rideId, payload.userId);
+            break;
+        case 'PAYMENT_FAILED':
+            rideService.handlePaymentFailed(payload.bookingId, payload.rideId, payload.userId);
+            break;
+        default:
+            logger.log(`Unhandled payment event type: ${payload.type}`);
     }
 }
 async function disconnectConsumer() {

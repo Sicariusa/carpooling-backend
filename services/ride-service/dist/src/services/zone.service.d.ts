@@ -10,5 +10,4 @@ export declare class ZoneService {
     update(id: string, updateZoneInput: UpdateZoneInput): Promise<Zone>;
     remove(id: string): Promise<boolean>;
     validateZoneDirection(fromZoneId: string, toZoneId: string): Promise<boolean>;
-    findZonesWithDistanceZero(): Promise<Zone[]>;
 }

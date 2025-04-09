@@ -12,8 +12,8 @@ const mongoose_1 = require("@nestjs/mongoose");
 const ride_service_1 = require("../services/ride.service");
 const ride_resolver_1 = require("../resolvers/ride.resolver");
 const ride_schema_1 = require("../schemas/ride.schema");
-const route_module_1 = require("./route.module");
 const zone_module_1 = require("./zone.module");
+const stop_module_1 = require("./stop.module");
 let RideModule = class RideModule {
 };
 exports.RideModule = RideModule;
@@ -21,8 +21,8 @@ exports.RideModule = RideModule = __decorate([
     (0, common_1.Module)({
         imports: [
             mongoose_1.MongooseModule.forFeature([{ name: ride_schema_1.Ride.name, schema: ride_schema_1.RideSchema }]),
-            route_module_1.RouteModule,
             zone_module_1.ZoneModule,
+            stop_module_1.StopModule,
         ],
         providers: [ride_service_1.RideService, ride_resolver_1.RideResolver],
         exports: [ride_service_1.RideService],

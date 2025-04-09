@@ -18,11 +18,13 @@ exports.CreateZoneInput = CreateZoneInput;
 __decorate([
     (0, graphql_1.Field)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateZoneInput.prototype, "name", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsNotEmpty)(),
     __metadata("design:type", String)
 ], CreateZoneInput.prototype, "description", void 0);
 __decorate([
@@ -31,6 +33,12 @@ __decorate([
     (0, class_validator_1.Min)(0),
     __metadata("design:type", Number)
 ], CreateZoneInput.prototype, "distanceFromGIU", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => Boolean, { nullable: true, defaultValue: true }),
+    (0, class_validator_1.IsBoolean)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Boolean)
+], CreateZoneInput.prototype, "isActive", void 0);
 exports.CreateZoneInput = CreateZoneInput = __decorate([
     (0, graphql_1.InputType)()
 ], CreateZoneInput);

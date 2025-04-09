@@ -1,5 +1,5 @@
-import { InputType, Field, Float, ID } from '@nestjs/graphql';
-import { IsString, IsNotEmpty, IsNumber, IsOptional, IsBoolean } from 'class-validator';
+import { InputType, Field, ID, Float } from '@nestjs/graphql';
+import { IsString, IsNumber, IsBoolean, IsOptional, IsNotEmpty } from 'class-validator';
 
 @InputType()
 export class CreateStopInput {
@@ -26,9 +26,9 @@ export class CreateStopInput {
   @IsNotEmpty()
   zoneId: string;
 
-  @Field(() => Boolean, { nullable: true })
-  @IsOptional()
+  @Field(() => Boolean, { nullable: true, defaultValue: true })
   @IsBoolean()
+  @IsOptional()
   isActive?: boolean;
 }
 
@@ -60,7 +60,7 @@ export class UpdateStopInput {
   zoneId?: string;
 
   @Field(() => Boolean, { nullable: true })
-  @IsOptional()
   @IsBoolean()
+  @IsOptional()
   isActive?: boolean;
-}
+} 

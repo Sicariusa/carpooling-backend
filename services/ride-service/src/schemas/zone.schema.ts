@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { Field, ID, ObjectType, Int } from '@nestjs/graphql';
+import { Field, ID, ObjectType, Int, Float } from '@nestjs/graphql';
 
 export type ZoneDocument = Zone & Document;
 
@@ -11,7 +11,7 @@ export class Zone {
   _id: Types.ObjectId;
 
   @Field()
-  @Prop({ required: true, unique: true })
+  @Prop({ required: true })
   name: string;
 
   @Field()
@@ -19,8 +19,8 @@ export class Zone {
   description: string;
 
   @Field(() => Int)
-  @Prop({ required: true, default: 0 })
-  distanceFromGIU: number; // in kilometers
+  @Prop({ required: true, min: 0 })
+  distanceFromGIU: number;
 
   @Field(() => Boolean)
   @Prop({ default: true })

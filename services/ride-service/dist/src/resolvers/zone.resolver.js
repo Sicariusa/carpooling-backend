@@ -14,13 +14,13 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ZoneResolver = void 0;
 const graphql_1 = require("@nestjs/graphql");
+const common_1 = require("@nestjs/common");
 const zone_schema_1 = require("../schemas/zone.schema");
 const zone_service_1 = require("../services/zone.service");
 const zone_dto_1 = require("../dto/zone.dto");
-const common_1 = require("@nestjs/common");
-const roles_decorator_1 = require("../decorators/roles.decorator");
 const auth_guard_1 = require("../guards/auth.guard");
 const role_guard_1 = require("../guards/role.guard");
+const roles_decorator_1 = require("../decorators/roles.decorator");
 let ZoneResolver = class ZoneResolver {
     constructor(zoneService) {
         this.zoneService = zoneService;

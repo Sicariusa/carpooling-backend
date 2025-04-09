@@ -11,7 +11,7 @@ export class ZoneService {
   ) {}
 
   async findAll(): Promise<Zone[]> {
-    return this.zoneModel.find({ isActive: true }).sort({ distanceFromGIU: 1 }).exec();
+    return this.zoneModel.find({ isActive: true }).exec();
   }
 
   async findById(id: string): Promise<Zone> {
@@ -28,12 +28,6 @@ export class ZoneService {
   }
 
   async create(createZoneInput: CreateZoneInput): Promise<Zone> {
-    // Check if zone with the same name already exists
-    const existingZone = await this.zoneModel.findOne({ name: createZoneInput.name }).exec();
-    if (existingZone) {
-      throw new BadRequestException(`Zone with name ${createZoneInput.name} already exists`);
-    }
-    
     const createdZone = new this.zoneModel(createZoneInput);
     return createdZone.save();
   }
@@ -46,7 +40,7 @@ export class ZoneService {
     const updatedZone = await this.zoneModel.findByIdAndUpdate(
       id,
       { $set: updateZoneInput },
-      { new: true },
+      { new: true }
     ).exec();
     
     if (!updatedZone) {
@@ -64,7 +58,7 @@ export class ZoneService {
     const result = await this.zoneModel.findByIdAndUpdate(
       id,
       { isActive: false },
-      { new: true },
+      { new: true }
     ).exec();
     
     if (!result) {
@@ -78,21 +72,14 @@ export class ZoneService {
     const fromZone = await this.findById(fromZoneId);
     const toZone = await this.findById(toZoneId);
     
-    // If going to GIU (toZone)
-    if (toZone.distanceFromGIU === 0) {
-      return true; // Always allow going to GIU
-    }
+    // Valid transitions are always in one direction: 
+    // either moving further from GIU or moving closer to GIU
     
-    // If starting from GIU (fromZone)
-    if (fromZone.distanceFromGIU === 0) {
-      return true; // Always allow starting from GIU
-    }
+    // Determine if the direction is valid
+    const isMovingAwayFromGIU = toZone.distanceFromGIU > fromZone.distanceFromGIU;
+    const isMovingTowardsGIU = toZone.distanceFromGIU < fromZone.distanceFromGIU;
     
-    // Otherwise, we can only go to zones closer to GIU
-    return fromZone.distanceFromGIU > toZone.distanceFromGIU;
+    // Either direction is valid, but not back and forth
+    return isMovingAwayFromGIU || isMovingTowardsGIU;
   }
-
-  async findZonesWithDistanceZero(): Promise<Zone[]> {
-    return this.zoneModel.find({ distanceFromGIU: 0 }).exec();
-  }
-}
+} 

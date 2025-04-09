@@ -8,7 +8,6 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ZoneSchema = exports.Zone = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
@@ -19,11 +18,11 @@ let Zone = class Zone {
 exports.Zone = Zone;
 __decorate([
     (0, graphql_1.Field)(() => graphql_1.ID),
-    __metadata("design:type", typeof (_a = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _a : Object)
+    __metadata("design:type", mongoose_2.Types.ObjectId)
 ], Zone.prototype, "_id", void 0);
 __decorate([
     (0, graphql_1.Field)(),
-    (0, mongoose_1.Prop)({ required: true, unique: true }),
+    (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", String)
 ], Zone.prototype, "name", void 0);
 __decorate([
@@ -33,7 +32,7 @@ __decorate([
 ], Zone.prototype, "description", void 0);
 __decorate([
     (0, graphql_1.Field)(() => graphql_1.Int),
-    (0, mongoose_1.Prop)({ required: true, default: 0 }),
+    (0, mongoose_1.Prop)({ required: true, min: 0 }),
     __metadata("design:type", Number)
 ], Zone.prototype, "distanceFromGIU", void 0);
 __decorate([

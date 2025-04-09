@@ -1,9 +1,8 @@
-import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent, Context } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { Ride, RideStatus } from '../schemas/ride.schema';
-import { Route } from '../schemas/route.schema';
 import { RideService } from '../services/ride.service';
-import { CreateRideInput, SearchRideInput, UpdateRideInput, BookingDeadlineInput } from '../dto/ride.dto';
+import { CreateRideInput, SearchRideInput, UpdateRideInput, BookingDeadlineInput, ModifyDestinationInput } from '../dto/ride.dto';
 import { AuthGuard } from '../guards/auth.guard';
 import { RoleGuard } from '../guards/role.guard';
 import { Roles } from '../decorators/roles.decorator';
@@ -91,8 +90,7 @@ export class RideResolver {
     @Context() context
   ) {
     const { user } = context.req;
-    const updateInput: UpdateRideInput = { girlsOnly };
-    return this.rideService.update(id, updateInput, user.id);
+    return this.rideService.setGirlsOnly(id, girlsOnly, user.id);
   }
 
   @Mutation(() => Ride)
@@ -117,8 +115,42 @@ export class RideResolver {
     return this.rideService.setBookingDeadline(input.rideId, input.minutesBeforeDeparture, user.id);
   }
 
-  @ResolveField(() => Route)
-  async route(@Parent() ride: Ride) {
-    return this.rideService.getRouteForRide(ride._id.toString());
+  @Mutation(() => Ride)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles('DRIVER')
+  async acceptBookingRequest(
+    @Args('bookingId', { type: () => ID }) bookingId: string,
+    @Args('rideId', { type: () => ID }) rideId: string,
+    @Context() context
+  ) {
+    const { user } = context.req;
+    return this.rideService.acceptBookingRequest(bookingId, rideId, user.id);
+  }
+
+  @Mutation(() => Ride)
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles('DRIVER')
+  async rejectBookingRequest(
+    @Args('bookingId', { type: () => ID }) bookingId: string,
+    @Args('rideId', { type: () => ID }) rideId: string,
+    @Context() context
+  ) {
+    const { user } = context.req;
+    return this.rideService.rejectBookingRequest(bookingId, rideId, user.id);
+  }
+
+  @Mutation(() => Boolean)
+  @UseGuards(AuthGuard)
+  async modifyDropoffLocation(
+    @Args('input') input: ModifyDestinationInput,
+    @Context() context
+  ) {
+    const { user } = context.req;
+    return this.rideService.modifyDropoffLocation(
+      input.bookingId, 
+      input.rideId, 
+      user.id, 
+      input.newDropoffLocation
+    );
   }
 }

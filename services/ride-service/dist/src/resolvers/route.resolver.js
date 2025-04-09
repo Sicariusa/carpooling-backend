@@ -11,6 +11,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
+var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RouteResolver = void 0;
 const graphql_1 = require("@nestjs/graphql");
@@ -96,6 +97,6 @@ __decorate([
 ], RouteResolver.prototype, "stops", null);
 exports.RouteResolver = RouteResolver = __decorate([
     (0, graphql_1.Resolver)(() => route_schema_1.Route),
-    __metadata("design:paramtypes", [route_service_1.RouteService])
+    __metadata("design:paramtypes", [typeof (_a = typeof route_service_1.RouteService !== "undefined" && route_service_1.RouteService) === "function" ? _a : Object])
 ], RouteResolver);
 //# sourceMappingURL=route.resolver.js.map

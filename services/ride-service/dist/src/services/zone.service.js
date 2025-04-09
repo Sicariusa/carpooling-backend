@@ -11,7 +11,6 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ZoneService = void 0;
 const common_1 = require("@nestjs/common");
@@ -23,7 +22,7 @@ let ZoneService = class ZoneService {
         this.zoneModel = zoneModel;
     }
     async findAll() {
-        return this.zoneModel.find({ isActive: true }).sort({ distanceFromGIU: 1 }).exec();
+        return this.zoneModel.find({ isActive: true }).exec();
     }
     async findById(id) {
         if (!mongoose_2.Types.ObjectId.isValid(id)) {
@@ -36,10 +35,6 @@ let ZoneService = class ZoneService {
         return zone;
     }
     async create(createZoneInput) {
-        const existingZone = await this.zoneModel.findOne({ name: createZoneInput.name }).exec();
-        if (existingZone) {
-            throw new common_1.BadRequestException(`Zone with name ${createZoneInput.name} already exists`);
-        }
         const createdZone = new this.zoneModel(createZoneInput);
         return createdZone.save();
     }
@@ -66,22 +61,15 @@ let ZoneService = class ZoneService {
     async validateZoneDirection(fromZoneId, toZoneId) {
         const fromZone = await this.findById(fromZoneId);
         const toZone = await this.findById(toZoneId);
-        if (toZone.distanceFromGIU === 0) {
-            return true;
-        }
-        if (fromZone.distanceFromGIU === 0) {
-            return true;
-        }
-        return fromZone.distanceFromGIU > toZone.distanceFromGIU;
-    }
-    async findZonesWithDistanceZero() {
-        return this.zoneModel.find({ distanceFromGIU: 0 }).exec();
+        const isMovingAwayFromGIU = toZone.distanceFromGIU > fromZone.distanceFromGIU;
+        const isMovingTowardsGIU = toZone.distanceFromGIU < fromZone.distanceFromGIU;
+        return isMovingAwayFromGIU || isMovingTowardsGIU;
     }
 };
 exports.ZoneService = ZoneService;
 exports.ZoneService = ZoneService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(zone_schema_1.Zone.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object])
+    __metadata("design:paramtypes", [mongoose_2.Model])
 ], ZoneService);
 //# sourceMappingURL=zone.service.js.map

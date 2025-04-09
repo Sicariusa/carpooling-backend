@@ -9,7 +9,6 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { RideModule } from './modules/ride.module';
 import { ZoneModule } from './modules/zone.module';
-import { RouteModule } from './modules/route.module';
 import { StopModule } from './modules/stop.module';
 import { MiddlewareModule } from './middleware/middleware.module';
 
@@ -41,7 +40,6 @@ import { MiddlewareModule } from './middleware/middleware.module';
     }),
     RideModule,
     ZoneModule,
-    RouteModule,
     StopModule,
     MiddlewareModule,
   ],

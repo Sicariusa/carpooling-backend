@@ -34,14 +34,24 @@ export class StopService {
       throw new BadRequestException('Invalid zone ID');
     }
     
-    return this.stopModel.find({ zoneId, isActive: true }).exec();
+    // Verify the zone exists
+    await this.zoneService.findById(zoneId);
+    
+    return this.stopModel.find({ 
+      zoneId: new Types.ObjectId(zoneId),
+      isActive: true 
+    }).exec();
   }
 
   async create(createStopInput: CreateStopInput): Promise<Stop> {
-    // Validate that the zone exists
+    // Verify the zone exists
     await this.zoneService.findById(createStopInput.zoneId);
     
-    const createdStop = new this.stopModel(createStopInput);
+    const createdStop = new this.stopModel({
+      ...createStopInput,
+      zoneId: new Types.ObjectId(createStopInput.zoneId)
+    });
+    
     return createdStop.save();
   }
 
@@ -50,15 +60,37 @@ export class StopService {
       throw new BadRequestException('Invalid stop ID');
     }
     
-    // If updating the zone, validate that the new zone exists
+    // If zoneId is being updated, verify it exists
     if (updateStopInput.zoneId) {
       await this.zoneService.findById(updateStopInput.zoneId);
+      
+      // Create a new object without the zoneId property
+      const { zoneId, ...restInput } = updateStopInput;
+      
+      // Update with the converted zoneId
+      const updatedInput = {
+        ...restInput,
+        zoneId: new Types.ObjectId(zoneId)
+      };
+      
+      const updatedStop = await this.stopModel.findByIdAndUpdate(
+        id,
+        { $set: updatedInput },
+        { new: true }
+      ).exec();
+      
+      if (!updatedStop) {
+        throw new NotFoundException(`Stop with ID ${id} not found`);
+      }
+      
+      return updatedStop;
     }
     
+    // If no zoneId update, proceed normally
     const updatedStop = await this.stopModel.findByIdAndUpdate(
       id,
       { $set: updateStopInput },
-      { new: true },
+      { new: true }
     ).exec();
     
     if (!updatedStop) {
@@ -76,7 +108,7 @@ export class StopService {
     const result = await this.stopModel.findByIdAndUpdate(
       id,
       { isActive: false },
-      { new: true },
+      { new: true }
     ).exec();
     
     if (!result) {
@@ -90,4 +122,4 @@ export class StopService {
     const stop = await this.findById(stopId);
     return this.zoneService.findById(stop.zoneId.toString());
   }
-}
+} 

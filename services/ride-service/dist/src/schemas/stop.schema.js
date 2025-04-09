@@ -8,19 +8,17 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
-var _a, _b;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StopSchema = exports.Stop = void 0;
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const graphql_1 = require("@nestjs/graphql");
-const zone_schema_1 = require("./zone.schema");
 let Stop = class Stop {
 };
 exports.Stop = Stop;
 __decorate([
     (0, graphql_1.Field)(() => graphql_1.ID),
-    __metadata("design:type", typeof (_a = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _a : Object)
+    __metadata("design:type", mongoose_2.Types.ObjectId)
 ], Stop.prototype, "_id", void 0);
 __decorate([
     (0, graphql_1.Field)(),
@@ -44,13 +42,9 @@ __decorate([
 ], Stop.prototype, "longitude", void 0);
 __decorate([
     (0, graphql_1.Field)(() => graphql_1.ID),
-    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, ref: 'Zone', required: true }),
-    __metadata("design:type", typeof (_b = typeof mongoose_2.Types !== "undefined" && mongoose_2.Types.ObjectId) === "function" ? _b : Object)
+    (0, mongoose_1.Prop)({ type: mongoose_2.Types.ObjectId, required: true }),
+    __metadata("design:type", mongoose_2.Types.ObjectId)
 ], Stop.prototype, "zoneId", void 0);
-__decorate([
-    (0, graphql_1.Field)(() => zone_schema_1.Zone),
-    __metadata("design:type", zone_schema_1.Zone)
-], Stop.prototype, "zone", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Boolean),
     (0, mongoose_1.Prop)({ default: true }),

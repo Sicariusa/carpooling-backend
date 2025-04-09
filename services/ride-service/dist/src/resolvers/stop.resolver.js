@@ -14,14 +14,14 @@ var __param = (this && this.__param) || function (paramIndex, decorator) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.StopResolver = void 0;
 const graphql_1 = require("@nestjs/graphql");
+const common_1 = require("@nestjs/common");
 const stop_schema_1 = require("../schemas/stop.schema");
-const zone_schema_1 = require("../schemas/zone.schema");
 const stop_service_1 = require("../services/stop.service");
 const stop_dto_1 = require("../dto/stop.dto");
-const common_1 = require("@nestjs/common");
-const roles_decorator_1 = require("../decorators/roles.decorator");
 const auth_guard_1 = require("../guards/auth.guard");
 const role_guard_1 = require("../guards/role.guard");
+const roles_decorator_1 = require("../decorators/roles.decorator");
+const zone_schema_1 = require("../schemas/zone.schema");
 let StopResolver = class StopResolver {
     constructor(stopService) {
         this.stopService = stopService;

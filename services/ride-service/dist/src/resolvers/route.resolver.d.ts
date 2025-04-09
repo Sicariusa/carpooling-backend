@@ -4,10 +4,10 @@ import { CreateRouteInput, UpdateRouteInput } from '../dto/route.dto';
 export declare class RouteResolver {
     private routeService;
     constructor(routeService: RouteService);
-    routes(): Promise<Route[]>;
-    route(id: string): Promise<Route>;
-    createRoute(input: CreateRouteInput): Promise<Route>;
-    updateRoute(id: string, input: UpdateRouteInput): Promise<Route>;
-    removeRoute(id: string): Promise<boolean>;
-    stops(route: Route): Promise<any[]>;
+    routes(): Promise<any>;
+    route(id: string): Promise<any>;
+    createRoute(input: CreateRouteInput): Promise<any>;
+    updateRoute(id: string, input: UpdateRouteInput): Promise<any>;
+    removeRoute(id: string): Promise<any>;
+    stops(route: Route): Promise<any>;
 }

@@ -1,20 +1,27 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
-import { IsString, IsNumber, IsBoolean, IsOptional, Min } from 'class-validator';
+import { IsString, IsNumber, IsBoolean, IsOptional, IsNotEmpty, Min } from 'class-validator';
 
 @InputType()
 export class CreateZoneInput {
   @Field()
   @IsString()
+  @IsNotEmpty()
   name: string;
 
   @Field()
   @IsString()
+  @IsNotEmpty()
   description: string;
 
   @Field(() => Int)
   @IsNumber()
   @Min(0)
   distanceFromGIU: number;
+
+  @Field(() => Boolean, { nullable: true, defaultValue: true })
+  @IsBoolean()
+  @IsOptional()
+  isActive?: boolean;
 }
 
 @InputType()
@@ -39,4 +46,4 @@ export class UpdateZoneInput {
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;
-}
+} 

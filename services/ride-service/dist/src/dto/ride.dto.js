@@ -9,11 +9,28 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BookingDeadlineInput = exports.SearchRideInput = exports.UpdateRideInput = exports.CreateRideInput = void 0;
+exports.ModifyDestinationInput = exports.BookingDeadlineInput = exports.SearchRideInput = exports.UpdateRideInput = exports.CreateRideInput = exports.RideStopInput = void 0;
 const graphql_1 = require("@nestjs/graphql");
 const class_validator_1 = require("class-validator");
 const class_transformer_1 = require("class-transformer");
 const ride_schema_1 = require("../schemas/ride.schema");
+let RideStopInput = class RideStopInput {
+};
+exports.RideStopInput = RideStopInput;
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RideStopInput.prototype, "stopId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.Int),
+    (0, class_validator_1.IsNumber)(),
+    (0, class_validator_1.Min)(1),
+    __metadata("design:type", Number)
+], RideStopInput.prototype, "sequence", void 0);
+exports.RideStopInput = RideStopInput = __decorate([
+    (0, graphql_1.InputType)()
+], RideStopInput);
 let CreateRideInput = class CreateRideInput {
     constructor() {
         this.priceScale = 1;
@@ -22,10 +39,13 @@ let CreateRideInput = class CreateRideInput {
 };
 exports.CreateRideInput = CreateRideInput;
 __decorate([
-    (0, graphql_1.Field)(() => graphql_1.ID),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateRideInput.prototype, "routeId", void 0);
+    (0, graphql_1.Field)(() => [RideStopInput]),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMinSize)(2),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => RideStopInput),
+    __metadata("design:type", Array)
+], CreateRideInput.prototype, "stops", void 0);
 __decorate([
     (0, graphql_1.Field)(),
     (0, class_validator_1.IsDate)(),
@@ -79,6 +99,15 @@ exports.CreateRideInput = CreateRideInput = __decorate([
 let UpdateRideInput = class UpdateRideInput {
 };
 exports.UpdateRideInput = UpdateRideInput;
+__decorate([
+    (0, graphql_1.Field)(() => [RideStopInput], { nullable: true }),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.ArrayMinSize)(2),
+    (0, class_validator_1.ValidateNested)({ each: true }),
+    (0, class_transformer_1.Type)(() => RideStopInput),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], UpdateRideInput.prototype, "stops", void 0);
 __decorate([
     (0, graphql_1.Field)(() => Date, { nullable: true }),
     (0, class_validator_1.IsDate)(),
@@ -195,4 +224,25 @@ __decorate([
 exports.BookingDeadlineInput = BookingDeadlineInput = __decorate([
     (0, graphql_1.InputType)()
 ], BookingDeadlineInput);
+let ModifyDestinationInput = class ModifyDestinationInput {
+};
+exports.ModifyDestinationInput = ModifyDestinationInput;
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ModifyDestinationInput.prototype, "bookingId", void 0);
+__decorate([
+    (0, graphql_1.Field)(() => graphql_1.ID),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ModifyDestinationInput.prototype, "rideId", void 0);
+__decorate([
+    (0, graphql_1.Field)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], ModifyDestinationInput.prototype, "newDropoffLocation", void 0);
+exports.ModifyDestinationInput = ModifyDestinationInput = __decorate([
+    (0, graphql_1.InputType)()
+], ModifyDestinationInput);
 //# sourceMappingURL=ride.dto.js.map

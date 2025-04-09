@@ -10,7 +10,6 @@ exports.ZoneModule = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const zone_service_1 = require("../services/zone.service");
-const zone_resolver_1 = require("../resolvers/zone.resolver");
 const zone_schema_1 = require("../schemas/zone.schema");
 let ZoneModule = class ZoneModule {
 };
@@ -20,7 +19,7 @@ exports.ZoneModule = ZoneModule = __decorate([
         imports: [
             mongoose_1.MongooseModule.forFeature([{ name: zone_schema_1.Zone.name, schema: zone_schema_1.ZoneSchema }]),
         ],
-        providers: [zone_service_1.ZoneService, zone_resolver_1.ZoneResolver],
+        providers: [zone_service_1.ZoneService],
         exports: [zone_service_1.ZoneService],
     })
 ], ZoneModule);

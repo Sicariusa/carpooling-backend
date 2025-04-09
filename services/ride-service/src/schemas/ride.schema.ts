@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Field, ID, ObjectType, Int, Float, registerEnumType } from '@nestjs/graphql';
-import { Route } from './route.schema';
 
 export type RideDocument = Ride & Document;
 
@@ -18,6 +17,17 @@ registerEnumType(RideStatus, {
 });
 
 @ObjectType()
+export class RideStop {
+  @Field(() => ID)
+  @Prop({ type: Types.ObjectId, required: true })
+  stopId: Types.ObjectId;
+
+  @Field(() => Int)
+  @Prop({ required: true, min: 1 })
+  sequence: number;
+}
+
+@ObjectType()
 @Schema({ timestamps: true })
 export class Ride {
   @Field(() => ID)
@@ -27,12 +37,13 @@ export class Ride {
   @Prop({ required: true })
   driverId: string; // ID from user service
 
-  @Field(() => ID)
-  @Prop({ type: Types.ObjectId, ref: 'Route', required: true })
-  routeId: Types.ObjectId;
+  @Field(() => [RideStop])
+  @Prop({ type: [Object], required: true })
+  stops: RideStop[];
 
-  @Field(() => Route)
-  route: Route;
+  @Field(() => Boolean)
+  @Prop({ required: true })
+  startFromGIU: boolean; // Indicates if ride starts from GIU or ends at GIU
 
   @Field()
   @Prop({ required: true })

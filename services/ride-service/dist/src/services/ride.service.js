@@ -11,22 +11,21 @@ var __metadata = (this && this.__metadata) || function (k, v) {
 var __param = (this && this.__param) || function (paramIndex, decorator) {
     return function (target, key) { decorator(target, key, paramIndex); }
 };
-var _a;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RideService = void 0;
 const common_1 = require("@nestjs/common");
 const mongoose_1 = require("@nestjs/mongoose");
 const mongoose_2 = require("mongoose");
 const ride_schema_1 = require("../schemas/ride.schema");
-const route_service_1 = require("./route.service");
+const stop_service_1 = require("./stop.service");
 const zone_service_1 = require("./zone.service");
 const kafka_1 = require("../utils/kafka");
 const node_fetch_1 = require("node-fetch");
 const logger = new common_1.Logger('RideService');
 let RideService = class RideService {
-    constructor(rideModel, routeService, zoneService) {
+    constructor(rideModel, stopService, zoneService) {
         this.rideModel = rideModel;
-        this.routeService = routeService;
+        this.stopService = stopService;
         this.zoneService = zoneService;
     }
     async onModuleInit() {
@@ -82,10 +81,20 @@ let RideService = class RideService {
         let rides = await this.rideModel.find(query).exec();
         if (fromZoneId || toZoneId) {
             rides = await Promise.all(rides.map(async (ride) => {
-                const route = await this.routeService.findById(ride.routeId.toString());
-                const stopDetails = await this.routeService.getStopsForRoute(ride.routeId.toString());
-                const zoneIds = stopDetails.map(stop => stop.zoneId.toString());
-                const isStartFromGIU = route.startFromGIU;
+                const stopIds = ride.stops.map(stop => stop.stopId);
+                const stops = await Promise.all(stopIds.map(stopId => this.stopService.findById(stopId.toString())));
+                const orderedStops = [...ride.stops]
+                    .sort((a, b) => a.sequence - b.sequence)
+                    .map(orderedStop => {
+                    return stops.find(s => s._id.toString() === orderedStop.stopId.toString());
+                });
+                const zoneIds = await Promise.all(orderedStops.map(async (stop) => {
+                    if (!stop)
+                        return null;
+                    return stop.zoneId.toString();
+                }));
+                const validZoneIds = zoneIds.filter(id => id !== null);
+                const isStartFromGIU = ride.startFromGIU;
                 if (isStartFromGIU) {
                     if (fromZoneId) {
                         const fromZone = await this.zoneService.findById(fromZoneId);
@@ -93,7 +102,7 @@ let RideService = class RideService {
                             return null;
                         }
                     }
-                    if (toZoneId && !zoneIds.includes(toZoneId)) {
+                    if (toZoneId && !validZoneIds.includes(toZoneId)) {
                         return null;
                     }
                 }
@@ -104,7 +113,7 @@ let RideService = class RideService {
                             return null;
                         }
                     }
-                    if (fromZoneId && !zoneIds.includes(fromZoneId)) {
+                    if (fromZoneId && !validZoneIds.includes(fromZoneId)) {
                         return null;
                     }
                 }
@@ -115,11 +124,44 @@ let RideService = class RideService {
         return rides;
     }
     async create(createRideInput, driverId) {
-        const route = await this.routeService.findById(createRideInput.routeId);
-        if (!route.startFromGIU && !this.isRouteEndingAtGIU(route)) {
-            throw new common_1.BadRequestException('Route must either start from or end at GIU');
+        const stopIds = createRideInput.stops.map(stop => stop.stopId);
+        const stops = await Promise.all(stopIds.map(async (stopId) => {
+            if (!mongoose_2.Types.ObjectId.isValid(stopId)) {
+                throw new common_1.BadRequestException(`Invalid stop ID: ${stopId}`);
+            }
+            return this.stopService.findById(stopId);
+        }));
+        const zoneIds = await Promise.all(stops.map(async (stop) => {
+            return stop.zoneId.toString();
+        }));
+        const zones = await Promise.all(zoneIds.map(zoneId => this.zoneService.findById(zoneId)));
+        const orderedStops = [...createRideInput.stops]
+            .sort((a, b) => a.sequence - b.sequence);
+        const orderedZones = orderedStops.map((stopInput, index) => {
+            const stopIndex = stopIds.indexOf(stopInput.stopId);
+            return zones[stopIndex];
+        });
+        const firstZone = orderedZones[0];
+        const lastZone = orderedZones[orderedZones.length - 1];
+        const hasGIUAtEnds = (firstZone.distanceFromGIU === 0) || (lastZone.distanceFromGIU === 0);
+        if (!hasGIUAtEnds) {
+            throw new common_1.BadRequestException('Ride must have GIU as either the first or last stop');
         }
-        await this.verifyZoneSequence(route);
+        const startFromGIU = firstZone.distanceFromGIU === 0;
+        if (startFromGIU) {
+            for (let i = 1; i < orderedZones.length; i++) {
+                if (orderedZones[i].distanceFromGIU < orderedZones[i - 1].distanceFromGIU) {
+                    throw new common_1.BadRequestException('When starting from GIU, stops must be in order of increasing distance from GIU');
+                }
+            }
+        }
+        else {
+            for (let i = 1; i < orderedZones.length; i++) {
+                if (orderedZones[i].distanceFromGIU > orderedZones[i - 1].distanceFromGIU) {
+                    throw new common_1.BadRequestException('When ending at GIU, stops must be in order of decreasing distance from GIU');
+                }
+            }
+        }
         if (createRideInput.totalSeats < 1) {
             throw new common_1.BadRequestException('Total seats must be at least 1');
         }
@@ -130,8 +172,14 @@ let RideService = class RideService {
         if (new Date(createRideInput.departureTime) <= currentDate) {
             throw new common_1.BadRequestException('Departure time must be in the future');
         }
+        const formattedStops = createRideInput.stops.map(stop => ({
+            stopId: new mongoose_2.Types.ObjectId(stop.stopId),
+            sequence: stop.sequence
+        }));
         const createdRide = new this.rideModel({
             ...createRideInput,
+            stops: formattedStops,
+            startFromGIU,
             driverId,
             status: ride_schema_1.RideStatus.SCHEDULED,
             bookingIds: [],
@@ -144,103 +192,110 @@ let RideService = class RideService {
             type: 'RIDE_CREATED',
             rideId: savedRide._id.toString(),
             driverId,
-            route: route.name,
+            startLocation: savedRide.startLocation,
+            endLocation: savedRide.endLocation,
             departureTime: savedRide.departureTime,
+            stops: savedRide.stops,
+            girlsOnly: savedRide.girlsOnly,
             availableSeats: savedRide.availableSeats,
-            girlsOnly: savedRide.girlsOnly
+            totalSeats: savedRide.totalSeats,
+            pricePerSeat: savedRide.pricePerSeat,
+            priceScale: savedRide.priceScale
         });
         return savedRide;
-    }
-    async isRouteEndingAtGIU(route) {
-        const stops = await this.routeService.getStopsForRoute(route._id.toString());
-        const lastStop = stops[stops.length - 1];
-        const zone = await this.zoneService.findById(lastStop.zoneId.toString());
-        return zone.distanceFromGIU === 0;
-    }
-    async verifyZoneSequence(route) {
-        const stops = await this.routeService.getStopsForRoute(route._id.toString());
-        if (stops.length < 2) {
-            throw new common_1.BadRequestException('Route must have at least 2 stops');
-        }
-        const giuZones = await this.zoneService.findZonesWithDistanceZero();
-        const giuZoneIds = giuZones.map(zone => zone._id.toString());
-        const stopZones = await Promise.all(stops.map(async (stop) => {
-            const stopData = await this.routeService.getStopDetails(stop.stopId);
-            return await this.zoneService.findById(stopData.zoneId.toString());
-        }));
-        const hasGIUStop = stopZones.some(zone => zone.distanceFromGIU === 0);
-        if (!hasGIUStop) {
-            throw new common_1.BadRequestException('Route must have at least one stop at GIU');
-        }
-        if (route.startFromGIU) {
-            const firstStopZone = stopZones[0];
-            if (firstStopZone.distanceFromGIU !== 0) {
-                throw new common_1.BadRequestException('For routes starting from GIU, the first stop must be at GIU');
-            }
-            for (let i = 1; i < stopZones.length; i++) {
-                if (stopZones[i].distanceFromGIU < stopZones[i - 1].distanceFromGIU) {
-                    throw new common_1.BadRequestException('For routes starting from GIU, each stop must be at the same or further distance from GIU than the previous stop');
-                }
-            }
-        }
-        else {
-            const lastStopZone = stopZones[stopZones.length - 1];
-            if (lastStopZone.distanceFromGIU !== 0) {
-                throw new common_1.BadRequestException('For routes ending at GIU, the last stop must be at GIU');
-            }
-            for (let i = 1; i < stopZones.length; i++) {
-                if (stopZones[i].distanceFromGIU > stopZones[i - 1].distanceFromGIU) {
-                    throw new common_1.BadRequestException('For routes ending at GIU, each stop must be at the same or closer distance to GIU than the previous stop');
-                }
-            }
-        }
     }
     async update(id, updateRideInput, userId) {
         if (!mongoose_2.Types.ObjectId.isValid(id)) {
             throw new common_1.BadRequestException('Invalid ride ID');
         }
-        const ride = await this.rideModel.findById(id).exec();
-        if (!ride) {
-            throw new common_1.NotFoundException(`Ride with ID ${id} not found`);
-        }
+        const ride = await this.findById(id);
         if (ride.driverId !== userId) {
-            throw new common_1.BadRequestException('You do not have permission to update this ride');
+            throw new common_1.BadRequestException('Only the ride driver can update the ride');
         }
-        if (ride.status === ride_schema_1.RideStatus.COMPLETED || ride.status === ride_schema_1.RideStatus.CANCELLED) {
-            throw new common_1.BadRequestException('Cannot update a completed or cancelled ride');
+        if (updateRideInput.stops && updateRideInput.stops.length > 0) {
+            const stopIds = updateRideInput.stops.map(stop => stop.stopId);
+            const stops = await Promise.all(stopIds.map(async (stopId) => {
+                if (!mongoose_2.Types.ObjectId.isValid(stopId)) {
+                    throw new common_1.BadRequestException(`Invalid stop ID: ${stopId}`);
+                }
+                return this.stopService.findById(stopId);
+            }));
+            const zoneIds = await Promise.all(stops.map(async (stop) => {
+                return stop.zoneId.toString();
+            }));
+            const zones = await Promise.all(zoneIds.map(zoneId => this.zoneService.findById(zoneId)));
+            const orderedStops = [...updateRideInput.stops]
+                .sort((a, b) => a.sequence - b.sequence);
+            const orderedZones = orderedStops.map((stopInput, index) => {
+                const stopIndex = stopIds.indexOf(stopInput.stopId);
+                return zones[stopIndex];
+            });
+            const firstZone = orderedZones[0];
+            const lastZone = orderedZones[orderedZones.length - 1];
+            const hasGIUAtEnds = (firstZone.distanceFromGIU === 0) || (lastZone.distanceFromGIU === 0);
+            if (!hasGIUAtEnds) {
+                throw new common_1.BadRequestException('Ride must have GIU as either the first or last stop');
+            }
+            const startFromGIU = firstZone.distanceFromGIU === 0;
+            if (startFromGIU) {
+                for (let i = 1; i < orderedZones.length; i++) {
+                    if (orderedZones[i].distanceFromGIU < orderedZones[i - 1].distanceFromGIU) {
+                        throw new common_1.BadRequestException('When starting from GIU, stops must be in order of increasing distance from GIU');
+                    }
+                }
+            }
+            else {
+                for (let i = 1; i < orderedZones.length; i++) {
+                    if (orderedZones[i].distanceFromGIU > orderedZones[i - 1].distanceFromGIU) {
+                        throw new common_1.BadRequestException('When ending at GIU, stops must be in order of decreasing distance from GIU');
+                    }
+                }
+            }
+            const formattedStops = updateRideInput.stops.map(stop => ({
+                stopId: new mongoose_2.Types.ObjectId(stop.stopId),
+                sequence: stop.sequence
+            }));
+            const { stops: rideStops, ...restInput } = updateRideInput;
+            const updatedInput = {
+                ...restInput,
+                stops: formattedStops,
+                startFromGIU
+            };
+            const updatedRide = await this.rideModel.findByIdAndUpdate(id, { $set: updatedInput }, { new: true }).exec();
+            if (!updatedRide) {
+                throw new common_1.NotFoundException(`Ride with ID ${id} not found`);
+            }
+            await (0, kafka_1.produceMessage)('ride-events', {
+                type: 'RIDE_UPDATED',
+                rideId: updatedRide._id.toString(),
+                driverId: updatedRide.driverId,
+                changes: Object.keys(updatedInput)
+            });
+            return updatedRide;
         }
-        const hasPriceChanges = (updateRideInput.pricePerSeat !== undefined && updateRideInput.pricePerSeat !== ride.pricePerSeat) ||
-            (updateRideInput.priceScale !== undefined && updateRideInput.priceScale !== ride.priceScale);
+        if (updateRideInput.totalSeats !== undefined && updateRideInput.totalSeats < 1) {
+            throw new common_1.BadRequestException('Total seats must be at least 1');
+        }
         if (updateRideInput.availableSeats !== undefined &&
             updateRideInput.totalSeats !== undefined &&
             updateRideInput.availableSeats > updateRideInput.totalSeats) {
             throw new common_1.BadRequestException('Available seats cannot exceed total seats');
         }
-        if (updateRideInput.totalSeats !== undefined &&
-            updateRideInput.totalSeats < (ride.totalSeats - ride.availableSeats)) {
-            throw new common_1.BadRequestException('Cannot reduce total seats below the number of booked seats');
-        }
-        if (updateRideInput.totalSeats !== undefined && updateRideInput.availableSeats === undefined) {
-            const bookedSeats = ride.totalSeats - ride.availableSeats;
-            updateRideInput.availableSeats = updateRideInput.totalSeats - bookedSeats;
-        }
-        if (updateRideInput.departureTime && new Date(updateRideInput.departureTime) <= new Date()) {
-            throw new common_1.BadRequestException('Departure time must be in the future');
+        if (updateRideInput.departureTime) {
+            const currentDate = new Date();
+            if (new Date(updateRideInput.departureTime) <= currentDate) {
+                throw new common_1.BadRequestException('Departure time must be in the future');
+            }
         }
         const updatedRide = await this.rideModel.findByIdAndUpdate(id, { $set: updateRideInput }, { new: true }).exec();
-        if (hasPriceChanges && ride.bookingIds.length > 0) {
-            await this.notifyBookingService('RIDE_PRICE_UPDATED', {
-                rideId: ride._id.toString(),
-                pricePerSeat: updateRideInput.pricePerSeat || ride.pricePerSeat,
-                priceScale: updateRideInput.priceScale || ride.priceScale
-            });
+        if (!updatedRide) {
+            throw new common_1.NotFoundException(`Ride with ID ${id} not found`);
         }
         await (0, kafka_1.produceMessage)('ride-events', {
             type: 'RIDE_UPDATED',
-            rideId: id,
-            driverId: userId,
-            updatedFields: Object.keys(updateRideInput),
-            bookingIds: ride.bookingIds
+            rideId: updatedRide._id.toString(),
+            driverId: updatedRide.driverId,
+            changes: Object.keys(updateRideInput)
         });
         return updatedRide;
     }
@@ -288,10 +343,6 @@ let RideService = class RideService {
             bookingDeadline
         });
         return updatedRide;
-    }
-    async getRouteForRide(rideId) {
-        const ride = await this.findById(rideId);
-        return this.routeService.findById(ride.routeId.toString());
     }
     async verifyRideBooking(bookingId, rideId, userId) {
         logger.log(`Verifying ride booking: ${bookingId} for ride: ${rideId}`);
@@ -470,18 +521,27 @@ let RideService = class RideService {
             if (!ride.bookingIds.includes(bookingId)) {
                 throw new common_1.BadRequestException(`Booking ${bookingId} is not associated with ride ${rideId}`);
             }
-            const route = await this.routeService.findById(ride.routeId.toString());
-            const stops = await this.routeService.getStopsForRoute(ride.routeId.toString());
-            const stopNames = stops.map(stop => stop.name);
-            if (!stopNames.some(name => name.toLowerCase() === newDropoffLocation.toLowerCase())) {
+            const stopIds = ride.stops.map(stop => stop.stopId);
+            const stops = await Promise.all(stopIds.map(stopId => this.stopService.findById(stopId.toString())));
+            const stopNames = stops.map(stop => stop.name.toLowerCase());
+            if (!stopNames.includes(newDropoffLocation.toLowerCase())) {
                 throw new common_1.BadRequestException(`The destination ${newDropoffLocation} is not a valid stop in this route`);
             }
-            await (0, kafka_1.produceMessage)('ride-events', {
+            await (0, kafka_1.produceMessage)('notification-events', {
                 type: 'DESTINATION_CHANGED',
+                recipientId: ride.driverId,
+                title: 'Dropoff Location Changed',
+                message: `A passenger has changed their drop-off location to ${newDropoffLocation}`,
                 rideId,
                 bookingId,
                 userId,
-                driverId: ride.driverId,
+                timestamp: new Date().toISOString()
+            });
+            await (0, kafka_1.produceMessage)('booking-events', {
+                type: 'DESTINATION_CHANGE_APPROVED',
+                bookingId,
+                rideId,
+                userId,
                 newDropoffLocation,
                 timestamp: new Date().toISOString()
             });
@@ -489,6 +549,14 @@ let RideService = class RideService {
         }
         catch (error) {
             logger.error(`Failed to process destination change: ${error.message}`);
+            await (0, kafka_1.produceMessage)('booking-events', {
+                type: 'DESTINATION_CHANGE_REJECTED',
+                bookingId,
+                rideId,
+                userId,
+                reason: error.message,
+                timestamp: new Date().toISOString()
+            });
             throw error;
         }
     }
@@ -570,54 +638,47 @@ let RideService = class RideService {
         }
     }
     async calculateFareForBooking(rideId, pickupStopId, dropoffStopId) {
-        const ride = await this.findById(rideId);
-        const route = await this.routeService.findById(ride.routeId.toString());
-        const routeStops = await this.routeService.getStopsForRoute(ride.routeId.toString());
-        const pickupStop = routeStops.find(rs => rs.stopId.toString() === pickupStopId);
-        const dropoffStop = routeStops.find(rs => rs.stopId.toString() === dropoffStopId);
-        if (!pickupStop || !dropoffStop) {
-            throw new common_1.BadRequestException('Invalid pickup or dropoff stop');
+        try {
+            const ride = await this.findById(rideId);
+            const rideStops = ride.stops.sort((a, b) => a.sequence - b.sequence);
+            const pickupStop = rideStops.find(stop => stop.stopId.toString() === pickupStopId);
+            const dropoffStop = rideStops.find(stop => stop.stopId.toString() === dropoffStopId);
+            if (!pickupStop || !dropoffStop) {
+                throw new common_1.BadRequestException('Invalid pickup or dropoff stop for this ride');
+            }
+            const pickupStopDetails = await this.stopService.findById(pickupStopId);
+            const dropoffStopDetails = await this.stopService.findById(dropoffStopId);
+            if (!pickupStopDetails || !dropoffStopDetails) {
+                throw new common_1.BadRequestException('Stop details not found');
+            }
+            const pickupZone = await this.zoneService.findById(pickupStopDetails.zoneId.toString());
+            const dropoffZone = await this.zoneService.findById(dropoffStopDetails.zoneId.toString());
+            const isStartFromGIU = ride.startFromGIU;
+            const isPickupBeforeDropoff = (isStartFromGIU && pickupStop.sequence < dropoffStop.sequence) ||
+                (!isStartFromGIU && pickupStop.sequence > dropoffStop.sequence);
+            if (!isPickupBeforeDropoff) {
+                throw new common_1.BadRequestException('Pickup must be before dropoff in the route direction');
+            }
+            const baseFare = ride.pricePerSeat;
+            let distanceFactor = 1.0;
+            if (isStartFromGIU) {
+                distanceFactor = 1.0 + (dropoffZone.distanceFromGIU / 10) * (ride.priceScale - 1);
+            }
+            else {
+                distanceFactor = 1.0 + (pickupZone.distanceFromGIU / 10) * (ride.priceScale - 1);
+            }
+            const finalFare = baseFare * distanceFactor;
+            return Math.round(finalFare * 100) / 100;
         }
-        let distanceCovered = 0;
-        let startSeq = Math.min(pickupStop.sequence, dropoffStop.sequence);
-        let endSeq = Math.max(pickupStop.sequence, dropoffStop.sequence);
-        const isPickupBeforeDropoff = (route.startFromGIU && pickupStop.sequence < dropoffStop.sequence) ||
-            (!route.startFromGIU && pickupStop.sequence > dropoffStop.sequence);
-        if (!isPickupBeforeDropoff) {
-            throw new common_1.BadRequestException('Pickup must be before dropoff in the route direction');
+        catch (error) {
+            if (error instanceof Error) {
+                logger.error(`Error calculating fare: ${error.message}`);
+            }
+            else {
+                logger.error('Unknown error calculating fare');
+            }
+            throw error;
         }
-        const baseFare = ride.pricePerSeat;
-        let distanceFactor = 1.0;
-        if (route.startFromGIU) {
-            distanceFactor = 1.0 + ((dropoffStop.sequence - 1) / (routeStops.length - 1)) * (ride.priceScale - 1);
-        }
-        else {
-            distanceFactor = 1.0 + ((routeStops.length - pickupStop.sequence) / (routeStops.length - 1)) * (ride.priceScale - 1);
-        }
-        const finalFare = baseFare * distanceFactor;
-        return Math.round(finalFare * 100) / 100;
-    }
-    async validateAndOrderStops(routeId, stops) {
-        const route = await this.routeService.findById(routeId);
-        const isStartFromGIU = route.startFromGIU;
-        const stopsWithZones = await Promise.all(stops.map(async (stop) => {
-            const stopData = await this.routeService.getStopDetails(stop.stopId);
-            const zone = await this.zoneService.findById(stopData.zoneId.toString());
-            return {
-                ...stop,
-                zoneDistanceFromGIU: zone.distanceFromGIU
-            };
-        }));
-        if (isStartFromGIU) {
-            stopsWithZones.sort((a, b) => a.zoneDistanceFromGIU - b.zoneDistanceFromGIU);
-        }
-        else {
-            stopsWithZones.sort((a, b) => b.zoneDistanceFromGIU - a.zoneDistanceFromGIU);
-        }
-        return stopsWithZones.map((stop, index) => ({
-            ...stop,
-            sequence: index + 1
-        }));
     }
     async notifyBookingService(action, data) {
         try {
@@ -636,7 +697,163 @@ let RideService = class RideService {
             logger.log(`Booking service notified: ${action}`);
         }
         catch (error) {
-            logger.error(`Failed to notify booking service: ${error.message}`);
+            if (error instanceof Error) {
+                logger.error(`Failed to notify booking service: ${error.message}`);
+            }
+            else {
+                logger.error('Unknown error notifying booking service');
+            }
+        }
+    }
+    async setGirlsOnly(id, girlsOnly, userId) {
+        if (!mongoose_2.Types.ObjectId.isValid(id)) {
+            throw new common_1.BadRequestException('Invalid ride ID');
+        }
+        const ride = await this.findById(id);
+        if (ride.driverId !== userId) {
+            throw new common_1.BadRequestException('Only the ride driver can update the ride');
+        }
+        const updatedRide = await this.rideModel.findByIdAndUpdate(id, { $set: { girlsOnly } }, { new: true }).exec();
+        if (!updatedRide) {
+            throw new common_1.NotFoundException(`Ride with ID ${id} not found`);
+        }
+        await (0, kafka_1.produceMessage)('ride-events', {
+            type: 'RIDE_GIRLS_ONLY_UPDATED',
+            rideId: updatedRide._id.toString(),
+            driverId: updatedRide.driverId,
+            girlsOnly: updatedRide.girlsOnly,
+            bookingIds: updatedRide.bookingIds
+        });
+        return updatedRide;
+    }
+    async acceptBookingRequest(bookingId, rideId, userId) {
+        if (!mongoose_2.Types.ObjectId.isValid(rideId)) {
+            throw new common_1.BadRequestException('Invalid ride ID');
+        }
+        const ride = await this.findById(rideId);
+        if (ride.driverId !== userId) {
+            throw new common_1.BadRequestException('Only the ride driver can accept booking requests');
+        }
+        if (ride.availableSeats <= 0) {
+            throw new common_1.BadRequestException('No available seats remaining for this ride');
+        }
+        const updatedRide = await this.rideModel.findByIdAndUpdate(rideId, {
+            $inc: { availableSeats: -1 },
+            $push: { bookingIds: bookingId }
+        }, { new: true }).exec();
+        if (!updatedRide) {
+            throw new common_1.NotFoundException(`Ride with ID ${rideId} not found`);
+        }
+        await (0, kafka_1.produceMessage)('booking-events', {
+            type: 'BOOKING_ACCEPTED',
+            bookingId,
+            rideId,
+            driverId: userId,
+            remainingSeats: updatedRide.availableSeats,
+            timestamp: new Date().toISOString()
+        });
+        return updatedRide;
+    }
+    async rejectBookingRequest(bookingId, rideId, userId) {
+        if (!mongoose_2.Types.ObjectId.isValid(rideId)) {
+            throw new common_1.BadRequestException('Invalid ride ID');
+        }
+        const ride = await this.findById(rideId);
+        if (ride.driverId !== userId) {
+            throw new common_1.BadRequestException('Only the ride driver can reject booking requests');
+        }
+        if (ride.bookingIds.includes(bookingId)) {
+            await this.rideModel.findByIdAndUpdate(rideId, {
+                $pull: { bookingIds: bookingId },
+                $inc: { availableSeats: 1 }
+            });
+        }
+        await (0, kafka_1.produceMessage)('booking-events', {
+            type: 'BOOKING_REJECTED',
+            bookingId,
+            rideId,
+            driverId: userId,
+            reason: 'Rejected by driver',
+            timestamp: new Date().toISOString()
+        });
+        return this.findById(rideId);
+    }
+    async modifyDropoffLocation(bookingId, rideId, userId, newDropoffLocation) {
+        try {
+            if (!mongoose_2.Types.ObjectId.isValid(rideId)) {
+                throw new common_1.BadRequestException('Invalid ride ID');
+            }
+            const ride = await this.findById(rideId);
+            const stopIds = ride.stops.map(stop => stop.stopId);
+            const stops = await Promise.all(stopIds.map(stopId => this.stopService.findById(stopId.toString())));
+            const validStopNames = stops.map(stop => stop.name.toLowerCase());
+            if (!validStopNames.includes(newDropoffLocation.toLowerCase())) {
+                throw new common_1.BadRequestException(`The destination ${newDropoffLocation} is not a valid stop in this route`);
+            }
+            await (0, kafka_1.produceMessage)('booking-events', {
+                type: 'BOOKING_DESTINATION_MODIFIED',
+                bookingId,
+                rideId,
+                userId,
+                newDropoffLocation,
+                timestamp: new Date().toISOString()
+            });
+            return true;
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                logger.error(`Error modifying dropoff location: ${error.message}`);
+            }
+            else {
+                logger.error('Unknown error modifying dropoff location');
+            }
+            return false;
+        }
+    }
+    async handlePaymentCompleted(bookingId, rideId, userId) {
+        logger.log(`Payment completed for booking ${bookingId}, ride ${rideId}`);
+        try {
+            const ride = await this.findById(rideId);
+            await (0, kafka_1.produceMessage)('notification-events', {
+                type: 'PAYMENT_COMPLETED',
+                recipientId: ride.driverId,
+                title: 'Payment Received',
+                message: `Payment for booking ${bookingId} has been completed successfully`,
+                rideId,
+                bookingId,
+                timestamp: new Date().toISOString()
+            });
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                logger.error(`Error handling payment completion: ${error.message}`);
+            }
+            else {
+                logger.error('Unknown error handling payment completion');
+            }
+        }
+    }
+    async handlePaymentFailed(bookingId, rideId, userId) {
+        logger.log(`Payment failed for booking ${bookingId}, ride ${rideId}`);
+        try {
+            const ride = await this.findById(rideId);
+            await (0, kafka_1.produceMessage)('notification-events', {
+                type: 'PAYMENT_FAILED',
+                recipientId: ride.driverId,
+                title: 'Payment Failed',
+                message: `Payment for booking ${bookingId} has failed. The passenger may try again.`,
+                rideId,
+                bookingId,
+                timestamp: new Date().toISOString()
+            });
+        }
+        catch (error) {
+            if (error instanceof Error) {
+                logger.error(`Error handling payment failure: ${error.message}`);
+            }
+            else {
+                logger.error('Unknown error handling payment failure');
+            }
         }
     }
 };
@@ -644,7 +861,8 @@ exports.RideService = RideService;
 exports.RideService = RideService = __decorate([
     (0, common_1.Injectable)(),
     __param(0, (0, mongoose_1.InjectModel)(ride_schema_1.Ride.name)),
-    __metadata("design:paramtypes", [typeof (_a = typeof mongoose_2.Model !== "undefined" && mongoose_2.Model) === "function" ? _a : Object, route_service_1.RouteService,
+    __metadata("design:paramtypes", [mongoose_2.Model,
+        stop_service_1.StopService,
         zone_service_1.ZoneService])
 ], RideService);
 //# sourceMappingURL=ride.service.js.map

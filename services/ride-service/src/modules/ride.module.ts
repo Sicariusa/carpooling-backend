@@ -3,14 +3,14 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { RideService } from '../services/ride.service';
 import { RideResolver } from '../resolvers/ride.resolver';
 import { Ride, RideSchema } from '../schemas/ride.schema';
-import { RouteModule } from './route.module';
 import { ZoneModule } from './zone.module';
+import { StopModule } from './stop.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Ride.name, schema: RideSchema }]),
-    RouteModule,
     ZoneModule,
+    StopModule,
   ],
   providers: [RideService, RideResolver],
   exports: [RideService],
