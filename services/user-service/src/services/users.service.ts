@@ -37,7 +37,7 @@ export class UsersService {
       // Test the connection
       this.transporter.verify((error) => {
         if (error) {
-          this.logger.error('SMTP connection error:', error);
+          this.logger.error('SMTP connection error or email w pass not found:', error);
         } else {
           this.logger.log('SMTP server connection established');
         }
