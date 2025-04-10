@@ -1,5 +1,5 @@
 import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
-import { UseGuards } from '@nestjs/common';
+import { UseGuards, UnauthorizedException } from '@nestjs/common';
 import { Ride, RideStatus } from '../schemas/ride.schema';
 import { RideService } from '../services/ride.service';
 import { CreateRideInput, SearchRideInput, UpdateRideInput, BookingDeadlineInput, ModifyDestinationInput } from '../dto/ride.dto';
@@ -66,6 +66,9 @@ export class RideResolver {
     @Context() context
   ) {
     const { user } = context.req;
+    // if (!user.isApproved) {
+    //   throw new UnauthorizedException('Your account needs to be approved before you can create a ride');
+    // }
     return this.rideService.create(createRideInput, user.id);
   }
 
