@@ -5,21 +5,46 @@ import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import * as sgMail from '@sendgrid/mail';
+import * as nodemailer from 'nodemailer';
 
-const otpStore = new Map<string, { otp: string; expiresAt: Date }>(); // In-memory OTP storage
+// Global OTP store with case-insensitive email keys
+const otpStore = new Map<string, { otp: string; expiresAt: Date }>();
 
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+  private transporter: nodemailer.Transporter;
 
   constructor(private readonly prisma: PrismaService) {
-    // Initialize SendGrid with API key
-    const apiKey = process.env.SENDGRID_API_KEY;
-    if (!apiKey) {
-      this.logger.error('SENDGRID_API_KEY is not set in environment variables');
+    // Initialize Nodemailer transporter
+    this.initializeNodemailer();
+  }
+
+  private initializeNodemailer() {
+    try {
+      this.transporter = nodemailer.createTransport({
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.EMAIL_PORT || '587'),
+        secure: process.env.EMAIL_SECURE === 'true',
+        auth: {
+          user: process.env.EMAIL_USER,
+          pass: process.env.EMAIL_PASSWORD,
+        },
+      });
+      
+      this.logger.log('Nodemailer transporter initialized');
+      
+      // Test the connection
+      this.transporter.verify((error) => {
+        if (error) {
+          this.logger.error('SMTP connection error:', error);
+        } else {
+          this.logger.log('SMTP server connection established');
+        }
+      });
+    } catch (error) {
+      this.logger.error('Failed to initialize Nodemailer transporter:', error);
     }
-    sgMail.setApiKey(apiKey);
   }
   
   //  Create a new user
@@ -27,11 +52,14 @@ export class UsersService {
     try {
       this.logger.log(`Creating new user with email: ${input.email}`);
       
+      // Normalize email to lowercase for consistency
+      const normalizedEmail = input.email.toLowerCase();
+      
       // First check if a user with this email already exists
-      const existingUser = await this.findByEmail(input.email);
+      const existingUser = await this.findByEmail(normalizedEmail);
 
       if (existingUser) {
-        throw new ConflictException(`User with email ${input.email} already exists`);
+        throw new ConflictException(`User with email ${normalizedEmail} already exists`);
       }
 
       const existingUserByUniversityId = await this.prisma.user.findUnique({
@@ -49,6 +77,7 @@ export class UsersService {
       const newUser = await this.prisma.user.create({
         data: {
           ...restInput,
+          email: normalizedEmail, // Store normalized email
           password: hashedPassword,
           isApproved: false, // Ensure user starts as unapproved
         },
@@ -129,29 +158,42 @@ export class UsersService {
   }
 
   async findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+    // Always search with lowercase email
+    return this.prisma.user.findUnique({ 
+      where: { email: email.toLowerCase() } 
+    });
   }
   
   async sendOtp(email: string) {
     this.logger.log(`Attempting to send OTP to: ${email}`);
     
-    if (!process.env.SENDGRID_FROM_EMAIL) {
-      this.logger.error('SENDGRID_FROM_EMAIL is not set in environment variables');
+    // Normalize email
+    const normalizedEmail = email.toLowerCase();
+    
+    if (!process.env.EMAIL_USER) {
+      this.logger.error('EMAIL_USER is not set in environment variables');
       throw new BadRequestException('Email service is not properly configured');
     }
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit OTP
-    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 mins expiry
+    // Verify that the user exists
+    const user = await this.findByEmail(normalizedEmail);
+    if (!user) {
+      throw new BadRequestException(`No user found with email: ${normalizedEmail}`);
+    }
+
+    // Generate a 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins expiry
   
-    // Store OTP in memory
-    otpStore.set(email, { otp, expiresAt });
+    // Store OTP in memory with normalized email as key
+    otpStore.set(normalizedEmail, { otp, expiresAt });
   
-    // Send email using SendGrid
+    // Send email using Nodemailer
     const msg = {
-      to: email,
-      from: process.env.SENDGRID_FROM_EMAIL,
+      from: process.env.EMAIL_USER,
+      to: normalizedEmail,
       subject: 'Your Verification OTP',
-      text: `Your OTP is ${otp}. It expires in 5 minutes.`,
+      text: `Your OTP is ${otp}. It expires in 10 minutes.`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Email Verification</h2>
@@ -159,54 +201,76 @@ export class UsersService {
           <div style="background-color: #f4f4f4; padding: 15px; text-align: center; font-size: 24px; font-weight: bold; margin: 20px 0;">
             ${otp}
           </div>
-          <p>This OTP will expire in 5 minutes.</p>
+          <p>This OTP will expire in 10 minutes.</p>
           <p>If you didn't request this verification, please ignore this email.</p>
+          <p>- Carpooling Team</p>
         </div>
       `,
     };
     
     try {
-      this.logger.log('Sending email via SendGrid...');
-      await sgMail.send(msg);
-      this.logger.log('SendGrid email sent successfully');
+      this.logger.log(`Sending email via Nodemailer to ${normalizedEmail}...`);
+      await this.transporter.sendMail(msg);
+      this.logger.log(`Nodemailer email sent successfully to ${normalizedEmail}`);
+      
+      // For debugging
+      this.logger.debug(`OTP for ${normalizedEmail}: ${otp}`);
+      
       return true;
     } catch (error) {
-      this.logger.error('SendGrid error:', error);
+      this.logger.error('Nodemailer error:', error);
       throw new BadRequestException('Failed to send OTP email: ' + error.message);
     }
   }
   
   async verifyOtp(email: string, otp: string): Promise<boolean> {
-    this.logger.log(`Verifying OTP for email: ${email}`);
+    // Normalize email
+    const normalizedEmail = email.toLowerCase();
     
-    const record = otpStore.get(email);
+    this.logger.log(`Verifying OTP for email: ${normalizedEmail}`);
+    
+    // Verify that the user exists
+    const user = await this.findByEmail(normalizedEmail);
+    if (!user) {
+      throw new BadRequestException(`No user found with email: ${normalizedEmail}`);
+    }
+    
+    // Get OTP record using normalized email
+    const record = otpStore.get(normalizedEmail);
   
     if (!record) {
-      this.logger.warn(`No OTP found for email: ${email}`);
-      throw new BadRequestException('No OTP found');
+      this.logger.warn(`No OTP found for email: ${normalizedEmail}`);
+      throw new BadRequestException('No OTP found. Please request a new OTP.');
     }
+    
     if (record.expiresAt < new Date()) {
-      this.logger.warn(`OTP expired for email: ${email}`);
-      throw new BadRequestException('OTP expired');
+      this.logger.warn(`OTP expired for email: ${normalizedEmail}`);
+      // Clean up expired OTP
+      otpStore.delete(normalizedEmail);
+      throw new BadRequestException('OTP has expired. Please request a new OTP.');
     }
+    
     if (record.otp !== otp) {
-      this.logger.warn(`Invalid OTP provided for email: ${email}`);
-      throw new BadRequestException('Invalid OTP');
+      this.logger.warn(`Invalid OTP provided for email: ${normalizedEmail}`);
+      throw new BadRequestException('Invalid OTP. Please try again.');
     }
   
     // ✅ Mark user as approved after successful verification
     try {
-      await this.prisma.user.update({
-        where: { email },
+      const updatedUser = await this.prisma.user.update({
+        where: { email: normalizedEmail },
         data: { isApproved: true },
       });
-      this.logger.log(`User ${email} successfully verified`);
+      
+      this.logger.log(`User ${normalizedEmail} successfully verified and approved.`);
+      
+      // Clean up after successful verification
+      otpStore.delete(normalizedEmail);
+      
+      return true;
     } catch (error) {
       this.logger.error(`Error updating user verification status: ${error}`);
       throw new BadRequestException('Failed to update user verification status');
     }
-  
-    otpStore.delete(email); // Clean up
-    return true;
   }
 }

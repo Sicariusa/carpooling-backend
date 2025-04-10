@@ -72,17 +72,16 @@ export class UsersResolver {
     return result;
   }
 
-  @Mutation(() => Boolean, { name: 'verifyOtp' })
+  @Mutation(() => User, { name: 'verifyOtp' })
   @Public()
   async verifyOtp(
     @Args('email') email: string,
     @Args('otp') otp: string,
-  ): Promise<boolean> {
+  ): Promise<User> {
     this.logger.log(`Verifying OTP for email: ${email}`);
-    const result = await this.usersService.verifyOtp(email, otp);
-    if (result) {
-      this.logger.log(`OTP verified successfully for: ${email}`);
-    }
-    return result;
+    await this.usersService.verifyOtp(email, otp);
+    this.logger.log(`OTP verified successfully for: ${email}`);
+    // Return the user after verification
+    return this.usersService.findByEmail(email);
   }
 }

@@ -28,7 +28,7 @@ type Mutation {
   registerUser(input: CreateUserInput!): User!
   sendVerificationOtp(email: String!): Boolean!
   updateUser(input: UpdateUserInput!, universityId: Int!): User!
-  verifyOtp(email: String!, otp: String!): Boolean!
+  verifyOtp(email: String!, otp: String!): User!
 }
 
 type Query {
