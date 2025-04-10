@@ -6,6 +6,7 @@ import { UpdateUserInput } from 'src/dto/update-user.input.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import * as nodemailer from 'nodemailer';
+import { Console } from 'console';
 
 // Global OTP store with case-insensitive email keys
 const otpStore = new Map<string, { otp: string; expiresAt: Date }>();
@@ -37,13 +38,13 @@ export class UsersService {
       // Test the connection
       this.transporter.verify((error) => {
         if (error) {
-          this.logger.error('SMTP connection error:', error);
+          console.log('EMAIL_USER or EMAIL_PASSWORD is not set in environment variables');
         } else {
-          this.logger.log('SMTP server connection established');
+          console.log('SMTP server connection established');
         }
       });
     } catch (error) {
-      this.logger.error('Failed to initialize Nodemailer transporter:', error);
+      console.log('Failed to initialize Nodemailer transporter:', error);
     }
   }
   
