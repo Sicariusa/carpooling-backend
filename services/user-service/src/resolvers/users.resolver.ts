@@ -50,4 +50,11 @@ export class UsersResolver {
   async remove(@Args('universityId', { type: () => Int }) universityId: number): Promise<boolean> {
     return this.usersService.remove(universityId);
   }
+
+  @Query(() => User, { name: 'getUserByUuid' })
+  @Public()
+  async getUserByUuid(@Args('id', { type: () => String }) id: string) {
+    return this.usersService.findByUuid(id);
+  }
+  
 }

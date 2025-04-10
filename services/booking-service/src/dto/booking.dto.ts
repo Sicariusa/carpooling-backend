@@ -1,6 +1,5 @@
-import { Field, InputType, ID, registerEnumType, ObjectType } from '@nestjs/graphql';
+import { Field, InputType, ID, registerEnumType, Float } from '@nestjs/graphql';
 import { IsString, IsOptional, IsNotEmpty, IsEnum } from 'class-validator';
-import { Booking } from '../schema/booking.schema';
 
 export enum BookingStatus {
   PENDING = 'PENDING',
@@ -9,19 +8,9 @@ export enum BookingStatus {
   REJECTED = 'REJECTED'
 }
 
-export enum PaymentType {
-  CASH = 'CASH',
-  CREDIT = 'CREDIT'
-}
-
 registerEnumType(BookingStatus, {
   name: 'BookingStatus',
   description: 'Status of a booking',
-});
-
-registerEnumType(PaymentType, {
-  name: 'PaymentType',
-  description: 'Type of payment for booking',
 });
 
 @InputType()
@@ -36,61 +25,18 @@ export class CreateBookingInput {
   @IsString()
   rideId: string; // The ID of the ride being booked
 
-  @Field()
+  @Field(() => ID)
   @IsNotEmpty()
   @IsString()
-  pickupLocation: string; // The pickup location (required)
+  pickupStopId: string; // The ID of the pickup stop
 
-  @Field()
+  @Field(() => ID)
   @IsNotEmpty()
   @IsString()
-  dropoffLocation: string; // The dropoff location (required)
-
-  @Field(() => PaymentType)
-  @IsNotEmpty()
-  @IsEnum(PaymentType)
-  paymentType: PaymentType; // The payment method (CASH or CREDIT)
+  dropoffStopId: string; // The ID of the dropoff stop
 
   @Field(() => BookingStatus, { nullable: true })
   @IsOptional()
   @IsEnum(BookingStatus)
   status?: BookingStatus; // The status of the booking (optional)
-}
-
-@ObjectType()
-export class BookingWithPaymentInfo {
-  @Field(() => ID)
-  id: string;
-  
-  @Field(() => ID)
-  userId: string;
-  
-  @Field(() => Booking)
-  booking: Booking;
-
-  @Field({ nullable: true })
-  paymentRequired?: boolean;
-
-  @Field({ nullable: true })
-  paymentUrl?: string;
-
-  @Field(() => ID)
-  rideId: string;
-  
-  @Field(() => BookingStatus)
-  status: BookingStatus;
-  
-  @Field()
-  pickupLocation: string;
-  
-  @Field()
-  dropoffLocation: string;
-
-  //createdAt
-  @Field()
-  createdAt: Date;
-
-  //updatedAt
-  @Field()
-  updatedAt: Date;
 }

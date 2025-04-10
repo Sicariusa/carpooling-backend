@@ -32,6 +32,7 @@ type Mutation {
 type Query {
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
+  getUserByUuid(id: String!): User!
   validateToken(token: String!): TokenValidationResponse!
 }
 

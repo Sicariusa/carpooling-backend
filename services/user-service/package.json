@@ -25,12 +25,12 @@
     "@nestjs/apollo": "^13.0.3",
     "@nestjs/common": "^11.0.11",
     "@nestjs/config": "^4.0.1",
-    "@nestjs/core": "^11.0.1",
+    "@nestjs/core": "^11.0.11",
     "@nestjs/graphql": "^13.0.3",
     "@nestjs/jwt": "^11.0.0",
     "@nestjs/microservices": "^11.0.11",
     "@nestjs/platform-express": "^11.0.1",
-    "@prisma/client": "^6.4.1",
+    "@prisma/client": "^6.5.0",
     "apollo-server-express": "^3.13.0",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
@@ -46,9 +46,9 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",
-    "@nestjs/cli": "^11.0.0",
+    "@nestjs/cli": "^11.0.5",
     "@nestjs/schematics": "^11.0.0",
-    "@nestjs/testing": "^11.0.1",
+    "@nestjs/testing": "^11.0.11",
     "@swc/cli": "^0.6.0",
     "@swc/core": "^1.10.7",
     "@types/express": "^5.0.0",
@@ -62,7 +62,7 @@
     "prettier": "^3.4.2",
     "source-map-support": "^0.5.21",
     "supertest": "^7.0.0",
-    "ts-jest": "^29.2.5",
+    "ts-jest": "^29.2.6",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
@@ -84,6 +84,13 @@
       "**/*.(t|j)s"
     ],
     "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
+    "testEnvironment": "node",
+    "moduleDirectories": ["node_modules", "<rootDir>"],
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    }
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
   }
 }

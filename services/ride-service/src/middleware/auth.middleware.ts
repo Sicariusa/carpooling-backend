@@ -1,51 +1,33 @@
 import { Injectable, NestMiddleware, Logger } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import axios from 'axios';
 
 @Injectable()
 export class AuthMiddleware implements NestMiddleware {  private readonly logger = new Logger(AuthMiddleware.name);
 
   async use(req: Request, res: Response, next: NextFunction) {
-    try {
-      const authHeader = req.headers.authorization;
-      
-      if (!authHeader) {
-        req['user'] = null;
-        return next();
-      }
-
-      const token = authHeader.split(' ')[1];
-      
-      if (!token) {
-        req['user'] = null;
-        return next();
-      }
-
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader) {
       try {
-        // Call the user service to validate the token
-        const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3000';
-        const response = await axios.get(`${userServiceUrl}/auth/validate`, {
-          params: { token }
-        });
-
-        const { isValid, user, error } = response.data;
-
-        if (isValid && user) {
+        const token = authHeader.split(' ')[1];
+        const userServiceUrl = process.env.USER_SERVICE_URL || 'http://localhost:3003';
+        
+        // Validate token with user service
+        const response = await fetch(`${userServiceUrl}/auth/validate?token=${token}`);
+        const result = await response.json();
+        
+        if (result.isValid && result.user) {
           // Attach user information to the request
-          req['user'] = user;
+          req['user'] = result.user;
+          this.logger.log(`Authenticated user: ${result.user.email}`);
         } else {
-          this.logger.warn(`Token validation failed: ${error}`);
-          req['user'] = null;
+          this.logger.warn(`Invalid token: ${result.error}`);
         }
       } catch (error) {
-        this.logger.error(`Error validating token: ${error.message}`);
-        req['user'] = null;
+        this.logger.error('Error validating token:', error instanceof Error ? error.message : String(error));
       }
-    } catch (error) {
-      this.logger.error(`Middleware error: ${error.message}`);
-      req['user'] = null;
     }
-
+    
     next();
   }
-} 
+}

@@ -6,6 +6,9 @@ const logger = new Logger('Kafka');
 let consumer: Consumer;
 let producer: Producer;
 
+// Map to track pending ride data requests
+export const pendingRideRequests = new Map();
+
 const kafka = new Kafka({
   clientId: "booking-service",
   brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
@@ -23,10 +26,10 @@ export async function connectConsumer() {
   await consumer.subscribe({ topic: "booking-responses", fromBeginning: true });
   // Subscribe to ride-events to keep track of ride updates
   await consumer.subscribe({ topic: "ride-events", fromBeginning: true });
+  // Subscribe to ride-data-responses for ride data requests
+  await consumer.subscribe({ topic: "ride-data-responses", fromBeginning: true });
   // Keep the user-events subscription
   await consumer.subscribe({ topic: "user-events", fromBeginning: true });
-  // Subscribe to payment-events for payment updates
-  await consumer.subscribe({ topic: "payment-events", fromBeginning: true });
   
   logger.log('Kafka consumer connected and subscribed to required topics');
 }
@@ -46,8 +49,8 @@ export async function startConsumer(bookingService) {
             handleBookingResponses(payload, bookingService);
           } else if (topic === 'ride-events') {
             handleRideEvents(payload, bookingService);
-          } else if (topic === 'payment-events') {
-            handlePaymentEvents(payload, bookingService);
+          } else if (topic === 'ride-data-responses') {
+            handleRideDataResponses(payload, bookingService);
           }
           
         } catch (error) {
@@ -61,6 +64,64 @@ export async function startConsumer(bookingService) {
     logger.error(`Failed to start Kafka consumer: ${error.message}`);
     throw error;
   }
+}
+
+// Handle ride data responses
+function handleRideDataResponses(payload, bookingService) {
+  const { requestId, type, data, error } = payload;
+  
+  if (!requestId || !pendingRideRequests.has(requestId)) {
+    logger.warn(`Received ride data response with unknown requestId: ${requestId}`);
+    return;
+  }
+  
+  const { resolve, reject } = pendingRideRequests.get(requestId);
+  
+  if (error) {
+    logger.error(`Ride data request failed: ${error}`);
+    reject(new Error(error));
+  } else {
+    logger.log(`Received ride data response for requestId: ${requestId}`);
+    resolve(data);
+  }
+  
+  // Clean up the pending request
+  pendingRideRequests.delete(requestId);
+}
+
+// Generate a unique request ID
+export function generateRequestId() {
+  return `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
+
+// Request ride data through Kafka
+export async function requestRideData(type, params) {
+  return new Promise((resolve, reject) => {
+    const requestId = generateRequestId();
+    
+    // Store the promise callbacks in the pending requests map
+    pendingRideRequests.set(requestId, { resolve, reject });
+    
+    // Set a timeout to reject the promise if no response is received
+    const timeout = setTimeout(() => {
+      if (pendingRideRequests.has(requestId)) {
+        pendingRideRequests.delete(requestId);
+        reject(new Error(`Timeout waiting for ${type} response`));
+      }
+    }, 10000); // 10 second timeout
+    
+    // Send the request message
+    produceMessage('ride-data-requests', {
+      requestId,
+      type,
+      params,
+      timestamp: new Date().toISOString()
+    }).catch(error => {
+      clearTimeout(timeout);
+      pendingRideRequests.delete(requestId);
+      reject(error);
+    });
+  });
 }
 
 // Handle user-related events
@@ -103,23 +164,6 @@ function handleRideEvents(payload, bookingService) {
       break;
     default:
       logger.log(`Unhandled ride event type: ${payload.type}`);
-  }
-}
-
-// Handle payment-related events
-function handlePaymentEvents(payload, bookingService) {
-  switch (payload.type) {
-    case 'PAYMENT_COMPLETED':
-      bookingService.handlePaymentSuccess(payload.bookingId);
-      break;
-    case 'PAYMENT_FAILED':
-      bookingService.processVerificationFailure(payload.bookingId, payload.rideId, 'Payment failed');
-      break;
-    case 'PAYMENT_CANCELLED':
-      bookingService.processVerificationFailure(payload.bookingId, payload.rideId, 'Payment cancelled');
-      break;
-    default:
-      logger.log(`Unhandled payment event type: ${payload.type}`);
   }
 }
 
