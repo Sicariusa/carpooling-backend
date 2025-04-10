@@ -57,6 +57,10 @@ export class BookingResolver {
       throw new UnauthorizedException('You must be logged in to book a ride');
     }
     
+    if (!user.isApproved) {
+      throw new UnauthorizedException('Your account needs to be approved before you can book rides');
+    }
+    
     // Admins and Drivers cannot book rides
     if(user.role === 'ADMIN' || user.role === 'DRIVER') {
       throw new UnauthorizedException('Admins and Drivers cannot book rides');

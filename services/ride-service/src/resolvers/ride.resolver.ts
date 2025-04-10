@@ -6,6 +6,7 @@ import { CreateRideInput, SearchRideInput, UpdateRideInput, BookingDeadlineInput
 import { AuthGuard } from '../guards/auth.guard';
 import { RoleGuard } from '../guards/role.guard';
 import { Roles } from '../decorators/roles.decorator';
+import { UnauthorizedException } from '@nestjs/common';
 
 @Resolver(() => Ride)
 export class RideResolver {
@@ -66,6 +67,9 @@ export class RideResolver {
     @Context() context
   ) {
     const { user } = context.req;
+    if (!user.isApproved) {
+      throw new UnauthorizedException('Your account needs to be approved before you can create rides');
+    }
     return this.rideService.create(createRideInput, user.id);
   }
 
@@ -78,6 +82,9 @@ export class RideResolver {
     @Context() context
   ) {
     const { user } = context.req;
+    if (!user.isApproved) {
+      throw new UnauthorizedException('Your account needs to be approved before you can update rides');
+    }
     return this.rideService.update(id, updateRideInput, user.id);
   }
 
