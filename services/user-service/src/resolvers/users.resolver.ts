@@ -7,12 +7,15 @@ import { User } from 'src/schema/user';
 import { UsersService } from 'src/services/users.service';
 import { Roles, Public } from '../guards/auth.guard';
 import { Role } from '@prisma/client';
+import { Logger } from '@nestjs/common';
 
 // getdriverrides fe ride service
 // getMyBookings rides from booking service
 
 @Resolver(() => User)
 export class UsersResolver {
+  private readonly logger = new Logger(UsersResolver.name);
+
   constructor(private readonly usersService: UsersService) {}
 
   // Get all users (protected by default)
@@ -32,7 +35,10 @@ export class UsersResolver {
   @Mutation(() => User, { name: 'registerUser' })
   @Public()
   async createUser(@Args('input') input: CreateUserInput) {
-    return this.usersService.create(input);
+    this.logger.log(`Registering new user with email: ${input.email}`);
+    const user = await this.usersService.create(input);
+    this.logger.log(`User registered successfully: ${user.id}`);
+    return user;
   }
 
   //Update a user (protected by default)
@@ -56,5 +62,27 @@ export class UsersResolver {
   async getUserByUuid(@Args('id', { type: () => String }) id: string) {
     return this.usersService.findByUuid(id);
   }
-  
+
+  @Mutation(() => Boolean, { name: 'sendVerificationOtp' })
+  @Public()
+  async sendVerificationOtp(@Args('email') email: string) {
+    this.logger.log(`Sending verification OTP to: ${email}`);
+    const result = await this.usersService.sendOtp(email);
+    this.logger.log(`OTP sent successfully to: ${email}`);
+    return result;
+  }
+
+  @Mutation(() => Boolean, { name: 'verifyOtp' })
+  @Public()
+  async verifyOtp(
+    @Args('email') email: string,
+    @Args('otp') otp: string,
+  ): Promise<boolean> {
+    this.logger.log(`Verifying OTP for email: ${email}`);
+    const result = await this.usersService.verifyOtp(email, otp);
+    if (result) {
+      this.logger.log(`OTP verified successfully for: ${email}`);
+    }
+    return result;
+  }
 }
