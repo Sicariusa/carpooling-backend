@@ -33,7 +33,8 @@ export class AuthService {
       universityId: user.universityId,
       email: user.email,
       role: user.role,
-      phoneNumber: user.phoneNumber || null
+      phoneNumber: user.phoneNumber || null,
+      isApproved: user.isApproved
     };
     
     return {

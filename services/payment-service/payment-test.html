@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Stripe Payment Test</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+      body { font-family: Arial; padding: 40px; max-width: 500px; margin: auto; }
+      #card-element { padding: 12px; border: 1px solid #ccc; margin-top: 12px; border-radius: 4px; }
+      button { margin-top: 20px; padding: 10px 20px; }
+    </style>
+  </head>
+  <body>
+    <h2>🚗 GIU Car Pooling – Test Payment</h2>
+
+    <label for="jwt">JWT Token:</label><br/>
+    <input type="text" id="jwt" placeholder="Paste your token here" style="width: 100%;" /><br/><br/>
+
+    <button id="pay-btn">💳 Pay 100 EGP</button>
+    <div id="card-element"></div>
+    <p id="result"></p>
+
+    <script>
+      const stripe = Stripe('pk_test_51R12SZC8fYPuPUrgkeREzThO4EjHdkUGejIlociRNzhdecw2jP2BhGNQlklfh6jmfzQwSQG0kdZZ2rSNoIOLWaJh00Ys9REC9y');
+      const elements = stripe.elements();
+      const card = elements.create('card');
+      card.mount('#card-element');
+
+      document.getElementById('pay-btn').addEventListener('click', async () => {
+        const jwt = document.getElementById('jwt').value.trim();
+        if (!jwt) {
+          alert('Please paste a valid JWT token first.');
+          return;
+        }
+
+        const bookingId = 'test-123';
+        const amount = 100; // EGP
+
+        const res = await fetch('http://localhost:3003/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${jwt}`
+          },
+          body: JSON.stringify({
+            query: `
+  mutation {
+    createPayment(data: { bookingId: "${bookingId}", amount: ${amount} }) {
+      id
+      status
+      paymentIntentId
+      clientSecret
+    }
+  }
+`
+
+          })
+        });
+
+        const data = await res.json();
+const clientSecret = data?.data?.createPayment?.clientSecret;
+
+if (!clientSecret) {
+  document.getElementById('result').textContent = '❌ Failed to get client secret.';
+  return;
+}
+
+const result = await stripe.confirmCardPayment(clientSecret, {
+  payment_method: { card: card }
+});
+
+
+        if (result.error) {
+          document.getElementById('result').textContent = `❌ Error: ${result.error.message}`;
+        } else {
+          if (result.paymentIntent.status === 'succeeded') {
+            document.getElementById('result').textContent = '✅ Payment succeeded!';
+          } else {
+            document.getElementById('result').textContent = `⚠️ Payment status: ${result.paymentIntent.status}`;
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

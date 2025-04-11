@@ -2,22 +2,22 @@
 # THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
 # ------------------------------------------------------
 
-type Ride {
-  id: String!
-  driverId: String!
-  origin: String!
-  destination: String!
-  departure: DateTime!
-  seatsAvailable: Int!
-  price: Float!
-  isGirlsOnly: Boolean!
-  status: RideStatus!
-  isFromGIU: Boolean!
-  isToGIU: Boolean!
-  street: String
-  bookingDeadline: DateTime
-  createdAt: DateTime!
-  updatedAt: DateTime!
+input BookingDeadlineInput {
+  """Minutes before departure to set as booking deadline"""
+  minutesBeforeDeparture: Int!
+  rideId: ID!
+}
+
+input CreateRideInput {
+  availableSeats: Int!
+  departureTime: DateTime!
+  endLocation: String!
+  girlsOnly: Boolean! = false
+  pricePerSeat: Float!
+  priceScale: Float! = 1
+  startLocation: String!
+  stops: [RideStopInput!]!
+  totalSeats: Int!
 }
 
 """
@@ -25,62 +25,87 @@ A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date
 """
 scalar DateTime
 
-"""Status of a ride"""
-enum RideStatus {
-  PENDING
-  ACTIVE
-  COMPLETED
-  CANCELLED
-}
-
-type Query {
-  getAllRides: [Ride!]!
-  getRideById(id: String!): Ride!
-  searchRides(searchParams: SearchRideInput!): [Ride!]!
-  getDriverRides: [Ride!]!
-}
-
-input SearchRideInput {
-  origin: String
-  destination: String
-  isFromGIU: Boolean
-  isToGIU: Boolean
-  isGirlsOnly: Boolean
-  departureDate: DateTime
-  street: String
+input ModifyDestinationInput {
+  bookingId: ID!
+  newDropoffLocation: String!
+  rideId: ID!
 }
 
 type Mutation {
-  createRide(data: CreateRideInput!): Ride!
-  updateRide(id: String!, data: UpdateRideInput!): Ride!
-  deleteRide(id: String!): Ride!
-  setRideStatus(id: String!, status: String!): Ride!
-  setRideAsGirlsOnly(id: String!, isGirlsOnly: Boolean!): Ride!
-  updateAvailableSeats(id: String!, change: Int!): Ride!
+  acceptBookingRequest(bookingId: ID!, rideId: ID!): Ride!
+  cancelRide(id: ID!): Ride!
+  createRide(createRideInput: CreateRideInput!): Ride!
+  modifyDropoffLocation(input: ModifyDestinationInput!): Boolean!
+  rejectBookingRequest(bookingId: ID!, rideId: ID!): Ride!
+  setBookingDeadline(input: BookingDeadlineInput!): Ride!
+  setRideGirlsOnly(girlsOnly: Boolean!, id: ID!): Ride!
+  updateRide(id: ID!, updateRideInput: UpdateRideInput!): Ride!
 }
 
-input CreateRideInput {
-  driverId: String
-  origin: String!
-  destination: String!
-  street: String
-  departure: DateTime!
-  seatsAvailable: Int!
-  price: Float!
-  isGirlsOnly: Boolean! = false
-  isFromGIU: Boolean! = false
-  isToGIU: Boolean! = false
+type Query {
+  calculateFare(dropoffStopId: ID!, pickupStopId: ID!, rideId: ID!): Float!
+  myBookings: [Ride!]!
+  myRideHistory: [Ride!]!
+  myRides: [Ride!]!
+  ride(id: ID!): Ride!
+  rides: [Ride!]!
+  searchRides(searchInput: SearchRideInput!): [Ride!]!
+}
+
+type Ride {
+  _id: ID!
+  availableSeats: Int!
   bookingDeadline: DateTime
+  bookingIds: [String!]!
+  createdAt: DateTime!
+  departureTime: DateTime!
+  driverId: ID!
+  endLocation: String!
+  girlsOnly: Boolean!
+  pricePerSeat: Float!
+  priceScale: Float!
+  startFromGIU: Boolean!
+  startLocation: String!
+  status: RideStatus!
+  stops: [RideStop!]!
+  totalSeats: Int!
+  updatedAt: DateTime!
+}
+
+"""Status of a ride"""
+enum RideStatus {
+  ACTIVE
+  CANCELLED
+  COMPLETED
+  SCHEDULED
+}
+
+type RideStop {
+  sequence: Int!
+  stopId: ID!
+}
+
+input RideStopInput {
+  sequence: Int!
+  stopId: ID!
+}
+
+input SearchRideInput {
+  departureDate: DateTime
+  fromZoneId: ID
+  girlsOnly: Boolean
+  maxPrice: Int
+  minAvailableSeats: Int = 1
+  toZoneId: ID
 }
 
 input UpdateRideInput {
-  origin: String
-  destination: String
-  street: String
-  departure: DateTime
-  seatsAvailable: Int
-  price: Float
-  isGirlsOnly: Boolean
-  status: String
-  bookingDeadline: DateTime
+  availableSeats: Int
+  departureTime: DateTime
+  girlsOnly: Boolean
+  pricePerSeat: Float
+  priceScale: Float
+  status: RideStatus
+  stops: [RideStopInput!]
+  totalSeats: Int
 }

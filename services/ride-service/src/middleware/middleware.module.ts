@@ -1,12 +1,18 @@
-import { Module, NestModule, MiddlewareConsumer } from '@nestjs/common';
-import { AuthMiddleware } from './auth.middleware';
+import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { AuthGuard } from '../guards/auth.guard';
+import { RoleGuard } from '../guards/role.guard';
 
 @Module({
-  providers: [AuthMiddleware],
-  exports: [AuthMiddleware],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: AuthGuard,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: RoleGuard,
+    },
+  ],
 })
-export class MiddlewareModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AuthMiddleware).forRoutes('*');
-  }
-} 
+export class MiddlewareModule {}
