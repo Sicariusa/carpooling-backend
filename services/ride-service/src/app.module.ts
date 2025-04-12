@@ -16,7 +16,7 @@ import { MiddlewareModule } from './middleware/middleware.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: '/.env',
       load: [() => ({
         USER_SERVICE_URL: process.env.USER_SERVICE_URL || 'http://localhost:3000',
         BOOKING_SERVICE_URL: process.env.BOOKING_SERVICE_URL || 'http://localhost:3003',
