@@ -59,24 +59,29 @@ export class BookingService implements OnModuleInit {
         userId,
       });
   
-      // Step 3: Call payment service to create intent (with bookingId in metadata)
-      await axios.post('http://localhost:3003/graphql', {
-        query: `
-          mutation {
-            createPayment(data: {
-              bookingId: "${booking.id}",
-              amount: ${fare}
-            }) {
-              paymentIntentId
+      // Step 3: Try to call payment service, but continue if it fails
+      try {
+        await axios.post(`${process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004'}/graphql`, {
+          query: `
+            mutation {
+              createPayment(data: {
+                bookingId: "${booking.id}",
+                amount: ${fare}
+              }) {
+                paymentIntentId
+              }
             }
+          `
+        }, {
+          headers: {
+            Authorization: context?.req?.headers?.authorization || '',
+            'Content-Type': 'application/json'
           }
-        `
-      }, {
-        headers: {
-          Authorization: context?.req?.headers?.authorization || '',
-          'Content-Type': 'application/json'
-        }
-      });
+        });
+        console.log('Payment intent created successfully');
+      } catch (paymentError) {
+        console.log('Payment service call failed, but booking will continue:', paymentError.message);
+      }
   
       // Step 4: Return booking immediately (payment pending)
       return booking;

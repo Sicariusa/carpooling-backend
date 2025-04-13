@@ -34,17 +34,38 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
-  // Add axios interceptor for debugging API calls to user service
+  // Add axios interceptor for debugging API calls
   axios.interceptors.request.use(request => {
-    console.log('Starting Request to User Service:', request.method, request.url);
+    const serviceMap = {
+      '3000': 'User Service',
+      '3002': 'Ride Service',
+      '3004': 'Payment Service'
+    };
+    const url = new URL(request.url);
+    const serviceName = serviceMap[url.port] || 'Unknown Service';
+    console.log(`Starting Request to ${serviceName}:`, request.method, request.url);
     return request;
   });
 
   axios.interceptors.response.use(response => {
-    console.log('Response from User Service:', response.status);
+    const serviceMap = {
+      '3000': 'User Service',
+      '3002': 'Ride Service',
+      '3004': 'Payment Service'
+    };
+    const url = new URL(response.config.url);
+    const serviceName = serviceMap[url.port] || 'Unknown Service';
+    console.log(`Response from ${serviceName}:`, response.status);
     return response;
   }, error => {
-    console.error('Error in User Service request:', error.message);
+    const url = error.config?.url ? new URL(error.config.url) : null;
+    const serviceMap = {
+      '3000': 'User Service',
+      '3002': 'Ride Service',
+      '3004': 'Payment Service'
+    };
+    const serviceName = url ? serviceMap[url.port] || 'Unknown Service' : 'Unknown Service';
+    console.error(`Error in ${serviceName} request:`, error.message);
     return Promise.reject(error);
   });
 
