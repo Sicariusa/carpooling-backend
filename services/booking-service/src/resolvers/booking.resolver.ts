@@ -7,6 +7,7 @@ import { UnauthorizedException } from '@nestjs/common';
 @Resolver(() => Booking)
 export class BookingResolver {
   constructor(private readonly bookingService: BookingService) {}
+  
 
   @Query(() => [Booking])
   async AllBookings(@Context() context) {
@@ -56,17 +57,15 @@ export class BookingResolver {
     if (!user) {
       throw new UnauthorizedException('You must be logged in to book a ride');
     }
-    
+  
     // Admins and Drivers cannot book rides
     if(user.role === 'ADMIN' || user.role === 'DRIVER') {
       throw new UnauthorizedException('Admins and Drivers cannot book rides');
     }
-    // if (!user.isApproved) {
-    //   throw new UnauthorizedException('Your account needs to be approved before you can book a ride');
-    // }
-    
-    return this.bookingService.BookRide(data, user.id);
+  
+    return this.bookingService.BookRide(data, user.id, context); // Pass context here
   }
+  
 
   @Mutation(() => Booking)
   async cancelBooking(
@@ -112,4 +111,10 @@ export class BookingResolver {
     
     return this.bookingService.rejectBooking(id, user.id);
   }
+
+  @Mutation(() => Booking)
+async internalConfirmBooking(@Args('id', { type: () => ID }) id: string) {
+  return this.bookingService.confirmBookingFromWebhook(id);
+}
+
 }
