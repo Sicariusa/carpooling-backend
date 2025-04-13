@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import { Response } from 'express';
 import { PaymentService } from '../payment/payment.service';
 import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 
 @Controller('webhook')
 export class WebhookController {
@@ -44,6 +45,35 @@ export class WebhookController {
           const intent = event.data.object as Stripe.PaymentIntent;
           console.log('✅ PaymentIntent succeeded:', intent.id);
           await this.paymentService.handlePaymentIntentSucceeded(intent.id);
+          const bookingId = intent.metadata?.bookingId;
+          console.log('📦 Booking ID from metadata:', bookingId);
+
+
+if (bookingId) {
+  try {
+    console.log('📡 Sending confirmBooking mutation to Booking Service...');
+
+    await axios.post('http://localhost:3001/graphql', {
+      query: `
+        mutation {
+          internalConfirmBooking(id: "${bookingId}") {
+            id
+            status
+          }
+        }
+      `
+    }, {
+      headers: {
+        Authorization: `Bearer ${intent.metadata.userToken || ''}`, // optional if protected
+        'Content-Type': 'application/json',
+      }
+    });
+    console.log('✅ Booking confirmed from webhook for bookingId:', bookingId);
+  } catch (err) {
+    console.error('❌ Failed to confirm booking:', err.response?.data || err.message);
+  }
+}
+
           break;
         }
 

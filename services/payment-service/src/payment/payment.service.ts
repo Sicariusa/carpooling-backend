@@ -162,7 +162,7 @@ export class PaymentService {
 
     const mailOptions = {
       from: this.config.get<string>('EMAIL_USER'),
-      to: 'user@example.com', // Replace with actual user email
+      to: 'EMAIL_USER', // Replace with actual user email
       subject: 'Payment Failed',
       html: `<p>Your payment of ${payment.amount} ${payment.currency} failed. Please try again.</p>`,
     };
@@ -287,5 +287,6 @@ export class PaymentService {
       console.error('Error handling charge.updated:', err);
     }
   }
+
   
 }
