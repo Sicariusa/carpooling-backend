@@ -10,13 +10,20 @@
     </style>
   </head>
   <body>
-    <h2>🚗 GIU Car Pooling – Test Payment</h2>
+    <h2>🚗 GIU Car Pooling – Confirm Payment</h2>
 
-    <label for="jwt">JWT Token:</label><br/>
-    <input type="text" id="jwt" placeholder="Paste your token here" style="width: 100%;" /><br/><br/>
+    <label>JWT Token:</label>
+    <input type="text" id="jwt" placeholder="Paste your token here" style="width: 100%;" /><br><br>
 
-    <button id="pay-btn">💳 Pay 100 EGP</button>
+    <label>Booking ID:</label>
+    <input type="text" id="bookingId" placeholder="Paste your booking ID" style="width: 100%;" /><br><br>
+
+    <label>Client Secret:</label>
+    <input type="text" id="clientSecret" placeholder="Paste the client secret here" style="width: 100%;" /><br><br>
+
     <div id="card-element"></div>
+    <button id="pay-btn">💳 Pay Now</button>
+
     <p id="result"></p>
 
     <script>
@@ -26,57 +33,23 @@
       card.mount('#card-element');
 
       document.getElementById('pay-btn').addEventListener('click', async () => {
-        const jwt = document.getElementById('jwt').value.trim();
-        if (!jwt) {
-          alert('Please paste a valid JWT token first.');
+        const clientSecret = document.getElementById('clientSecret').value.trim();
+
+        if (!clientSecret) {
+          alert('Paste the clientSecret you got from the webhook logs.');
           return;
         }
 
-        const bookingId = 'test-123';
-        const amount = 100; // EGP
-
-        const res = await fetch('http://localhost:3003/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${jwt}`
-          },
-          body: JSON.stringify({
-            query: `
-  mutation {
-    createPayment(data: { bookingId: "${bookingId}", amount: ${amount} }) {
-      id
-      status
-      paymentIntentId
-      clientSecret
-    }
-  }
-`
-
-          })
+        const result = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: { card: card }
         });
-
-        const data = await res.json();
-const clientSecret = data?.data?.createPayment?.clientSecret;
-
-if (!clientSecret) {
-  document.getElementById('result').textContent = '❌ Failed to get client secret.';
-  return;
-}
-
-const result = await stripe.confirmCardPayment(clientSecret, {
-  payment_method: { card: card }
-});
-
 
         if (result.error) {
           document.getElementById('result').textContent = `❌ Error: ${result.error.message}`;
+        } else if (result.paymentIntent.status === 'succeeded') {
+          document.getElementById('result').textContent = '✅ Payment succeeded!';
         } else {
-          if (result.paymentIntent.status === 'succeeded') {
-            document.getElementById('result').textContent = '✅ Payment succeeded!';
-          } else {
-            document.getElementById('result').textContent = `⚠️ Payment status: ${result.paymentIntent.status}`;
-          }
+          document.getElementById('result').textContent = `⚠️ Status: ${result.paymentIntent.status}`;
         }
       });
     </script>

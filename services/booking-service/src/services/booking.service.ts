@@ -3,6 +3,7 @@ import { CreateBookingInput, BookingStatus } from '../dto/booking.dto';
 import { PrismaService } from './prisma.service';
 import { connectConsumer, startConsumer, produceMessage, requestRideData } from '../utils/kafka';
 import { Booking } from '@prisma/client';
+import axios from 'axios';
 
 const logger = new Logger('BookingService');
 
@@ -22,42 +23,23 @@ export class BookingService implements OnModuleInit {
       logger.error(`Kafka consumer init failed: ${error.message}`);
     }
   }
-
-  async BookRide(data: CreateBookingInput, userId: string): Promise<Booking> {
+  async BookRide(data: CreateBookingInput, userId: string, context?: any): Promise<Booking> {
     try {
-      // Fetch ride info using Kafka
-      let rideInfo;
-      try {
-        rideInfo = await requestRideData('GET_RIDE', { rideId: data.rideId });
-      } catch (error) {
-        throw new BadRequestException(`Ride not found or not available: ${error.message}`);
-      }
-      
-      // Calculate fare using Kafka
-      let fare = 0;
-      try {
-        fare = await requestRideData('CALCULATE_FARE', { 
-          rideId: data.rideId, 
-          pickupStopId: data.pickupStopId, 
-          dropoffStopId: data.dropoffStopId 
-        }) as number;
-      } catch (error) {
-        throw new BadRequestException(`Failed to calculate fare: ${error.message}`);
-      }
-      
-      // Get stop details for pickup and dropoff locations using Kafka
-      let pickupStop, dropoffStop;
-      try {
-        pickupStop = await requestRideData('GET_STOP', { stopId: data.pickupStopId });
-        dropoffStop = await requestRideData('GET_STOP', { stopId: data.dropoffStopId });
-      } catch (error) {
-        throw new BadRequestException(`Failed to get stop details: ${error.message}`);
-      }
-      
-      // Create a booking with PENDING status
+      const rideInfo = await requestRideData('GET_RIDE', { rideId: data.rideId });
+  
+      const fare = await requestRideData('CALCULATE_FARE', {
+        rideId: data.rideId,
+        pickupStopId: data.pickupStopId,
+        dropoffStopId: data.dropoffStopId,
+      }) as number;
+  
+      const pickupStop = await requestRideData('GET_STOP', { stopId: data.pickupStopId }) as { name: string };
+      const dropoffStop = await requestRideData('GET_STOP', { stopId: data.dropoffStopId }) as { name: string };
+  
+      // Step 1: Create the booking with PENDING status
       const booking = await this.prisma.booking.create({
         data: {
-          userId: userId,
+          userId,
           passengerId: userId,
           rideId: data.rideId,
           status: BookingStatus.PENDING,
@@ -65,25 +47,50 @@ export class BookingService implements OnModuleInit {
           dropoffStopId: data.dropoffStopId,
           pickupLocation: pickupStop.name || 'Unknown location',
           dropoffLocation: dropoffStop.name || 'Unknown location',
-          price: fare
-        } as any, // Type assertion to avoid type error
+          price: fare,
+        } as any,
       });
-      
-      // Send a booking verification request via Kafka
+  
+      // Step 2: Send booking creation event to Kafka
       await produceMessage('booking-events', {
         type: 'BOOKING_CREATED',
         bookingId: booking.id,
         rideId: data.rideId,
-        userId: userId
+        userId,
       });
-      
-      logger.log(`Booking created and verification requested: ${booking.id}`);
+  
+      // Step 3: Try to call payment service, but continue if it fails
+      try {
+        await axios.post(`${process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004'}/graphql`, {
+          query: `
+            mutation {
+              createPayment(data: {
+                bookingId: "${booking.id}",
+                amount: ${fare}
+              }) {
+                paymentIntentId
+              }
+            }
+          `
+        }, {
+          headers: {
+            Authorization: context?.req?.headers?.authorization || '',
+            'Content-Type': 'application/json'
+          }
+        });
+        console.log('Payment intent created successfully');
+      } catch (paymentError) {
+        console.log('Payment service call failed, but booking will continue:', paymentError.message);
+      }
+  
+      // Step 4: Return booking immediately (payment pending)
       return booking;
+  
     } catch (error) {
-      if (error instanceof BadRequestException) throw error;
       throw new BadRequestException(`Failed to book ride: ${error.message}`);
     }
   }
+  
 
   async getBookingById(id: string) {
     const booking = await this.prisma.booking.findUnique({ where: { id } });
@@ -240,4 +247,20 @@ export class BookingService implements OnModuleInit {
       orderBy: { createdAt: 'desc' }
     });
   }
+
+  async confirmBookingFromWebhook(bookingId: string): Promise<Booking> {
+    const booking = await this.getBookingById(bookingId);
+    console.log('🚦 BookingService.confirmBookingFromWebhook triggered:', bookingId);
+
+  
+    if (booking.status === BookingStatus.CONFIRMED) {
+      return booking; // already confirmed
+    }
+  
+    return this.prisma.booking.update({
+      where: { id: bookingId },
+      data: { status: BookingStatus.CONFIRMED },
+    });
+  }
+  
 }
