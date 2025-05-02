@@ -11,6 +11,8 @@ import { RideModule } from './modules/ride.module';
 import { ZoneModule } from './modules/zone.module';
 import { StopModule } from './modules/stop.module';
 import { MiddlewareModule } from './middleware/middleware.module';
+import { RideService } from './services/ride.service';
+import { RideResolver } from './resolvers/ride.resolver';
 
 @Module({
   imports: [

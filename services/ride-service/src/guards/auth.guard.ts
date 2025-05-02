@@ -8,7 +8,10 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const ctx = GqlExecutionContext.create(context);
     const request = ctx.getContext().req;
+   
     
+    if (request.body.operationName === 'IntrospectionQuery') return true;
+
     const token = this.extractTokenFromHeader(request);
     if (!token) {
       throw new UnauthorizedException('Missing authentication token');
@@ -53,6 +56,10 @@ export class AuthGuard implements CanActivate {
       
       // Attach the user data to the request for use in resolvers
       request.user = result.user;
+      if (!request.user.roles) {
+        request.user.roles = request.user.role ? [request.user.role] : [];
+        delete request.user.role;
+      }
       return true;
     } catch (error: any) {
       throw new UnauthorizedException('Authentication failed: ' + (error.message || 'Unknown error'));

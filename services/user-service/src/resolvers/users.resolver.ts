@@ -22,6 +22,22 @@ export class UsersResolver {
     return this.usersService.findAll();
   }
 
+  @Mutation(() => Boolean, { name: 'verifyOtp' })
+  @Public()
+  async verifyOtp(
+    @Args('email') email: string,
+    @Args('otp') otp: string,
+  ): Promise<boolean> {
+    return this.usersService.verifyOtp(email, otp);
+  }
+
+  // Send OTP to email (public)
+  @Mutation(() => Boolean, { name: 'sendOtp' })
+  @Public()
+  async sendOtp(@Args('email') email: string): Promise<boolean> {
+    return this.usersService.sendOtp(email);
+  }
+
   // Get user by ID (protected by default)
   @Query(() => User, { name: 'getUserById' })
   async findOne(@Args('universityId', { type: () => Int }) universityId: number) {

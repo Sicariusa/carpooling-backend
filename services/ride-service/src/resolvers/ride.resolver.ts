@@ -9,7 +9,7 @@ import { Roles } from '../decorators/roles.decorator';
 
 @Resolver(() => Ride)
 export class RideResolver {
-  constructor(private rideService: RideService) {}
+  constructor(private rideService: RideService) { }
 
   @Query(() => [Ride])
   async rides() {
@@ -42,6 +42,24 @@ export class RideResolver {
   async myRides(@Context() context) {
     const { user } = context.req;
     return this.rideService.findByDriver(user.id);
+  }
+
+  //get driver's active rides
+  @Query(() => [Ride])
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles('DRIVER')
+  async myActiveRides(@Context() context) {
+    const { user } = context.req;
+    return this.rideService.findActiveRides(user.id);
+  }
+
+  //get driver's scheduled rides
+  @Query(() => [Ride])
+  @UseGuards(AuthGuard, RoleGuard)
+  @Roles('DRIVER')
+  async myScheduledRides(@Context() context) {
+    const { user } = context.req;
+    return this.rideService.findScheduledRides(user.id);
   }
 
   @Query(() => [Ride])
@@ -150,9 +168,9 @@ export class RideResolver {
   ) {
     const { user } = context.req;
     return this.rideService.modifyDropoffLocation(
-      input.bookingId, 
-      input.rideId, 
-      user.id, 
+      input.bookingId,
+      input.rideId,
+      user.id,
       input.newDropoffLocation
     );
   }

@@ -76,6 +76,22 @@ export class RideService implements OnModuleInit {
     return this.rideModel.find({ driverId }).sort({ departureTime: -1 }).exec();
   }
 
+  //find the driver's active rides
+  async findActiveRides(driverId: string): Promise<Ride[]> {
+    return this.rideModel.find({
+      driverId,
+      status: { $in: [RideStatus.ACTIVE] }
+    }).exec();
+  }
+
+  //find the driver's scheduled rides
+  async findScheduledRides(driverId: string): Promise<Ride[]> {
+    return this.rideModel.find({
+      driverId,
+      status: { $in: [RideStatus.SCHEDULED] }
+    }).exec();
+  }
+
   async searchRides(searchInput: SearchRideInput): Promise<Ride[]> {
     const {
       fromZoneId,
