@@ -44,9 +44,11 @@ type Mutation {
 
 type Query {
   calculateFare(dropoffStopId: ID!, pickupStopId: ID!, rideId: ID!): Float!
+  myActiveRides: [Ride!]!
   myBookings: [Ride!]!
   myRideHistory: [Ride!]!
   myRides: [Ride!]!
+  myScheduledRides: [Ride!]!
   ride(id: ID!): Ride!
   rides: [Ride!]!
   searchRides(searchInput: SearchRideInput!): [Ride!]!
