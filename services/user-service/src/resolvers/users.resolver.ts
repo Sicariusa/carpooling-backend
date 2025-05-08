@@ -1,8 +1,7 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, Context } from '@nestjs/graphql';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
-
-
+import { verify } from 'jsonwebtoken';
 import { User } from 'src/schema/user';
 import { UsersService } from 'src/services/users.service';
 import { Roles, Public } from '../guards/auth.guard';
@@ -13,7 +12,7 @@ import { Role } from '@prisma/client';
 
 @Resolver(() => User)
 export class UsersResolver {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // Get all users (protected by default)
   @Query(() => [User], { name: 'getAllUsers' })
@@ -72,5 +71,19 @@ export class UsersResolver {
   async getUserByUuid(@Args('id', { type: () => String }) id: string) {
     return this.usersService.findByUuid(id);
   }
-  
+
+  //get user by token provided in header (protected by default)
+  @Query(() => User, { name: 'getUserByToken' })
+  async getUserByToken(@Context() context) {
+    try {
+      const token = context.req.headers.authorization.split(' ')[1];
+      if (!token) {
+        throw new Error('No token provided');
+      }
+      return this.usersService.getUserByToken(token);
+    } catch (error) {
+      throw new Error('error getting user by token: ' + error.message);
+    }
+  }
+
 }
