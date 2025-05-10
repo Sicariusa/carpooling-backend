@@ -5,6 +5,7 @@
 input CreateUserInput {
   email: String!
   firstName: String!
+  gender: String
   lastName: String!
   password: String!
   phoneNumber: Int
@@ -62,6 +63,7 @@ type User {
   createdAt: DateTime!
   email: String!
   firstName: String!
+  gender: String
   id: ID!
   lastName: String!
   password: String!

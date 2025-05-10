@@ -33,6 +33,9 @@ export class User {
   @Field(() => Int, { nullable: true })
   phoneNumber?: number;
 
+  @Field({ nullable: true }) // Add gender as a nullable field
+  gender?: string;
+
   @Field()
   createdAt: Date;
 

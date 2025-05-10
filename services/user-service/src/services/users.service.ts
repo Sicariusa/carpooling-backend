@@ -80,6 +80,7 @@ export class UsersService {
           ...restInput,
           email: normalizedEmail, // Store normalized email
           password: hashedPassword,
+          gender: input.gender, // Add gender to the user creation
           isApproved: false, // Ensure user starts as unapproved
         },
       });
