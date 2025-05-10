@@ -5,12 +5,14 @@ import { RideResolver } from '../resolvers/ride.resolver';
 import { Ride, RideSchema } from '../schemas/ride.schema';
 import { ZoneModule } from './zone.module';
 import { StopModule } from './stop.module';
+import { RouteModule } from './route.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Ride.name, schema: RideSchema }]),
     ZoneModule,
     StopModule,
+    RouteModule
   ],
   providers: [RideService, RideResolver],
   exports: [RideService],

@@ -86,12 +86,9 @@ export class RideResolver {
   async createRide(
     @Args('createRideInput') createRideInput: CreateRideInput,
     @Context() context
-  ) {
-    const { user } = context.req;
-    // if (!user.isApproved) {
-    //   throw new UnauthorizedException('Your account needs to be approved before you can create a ride');
-    // }
-    return this.rideService.create(createRideInput, user.id);
+  ): Promise<Ride> {
+    const driverId = context.req.user.id;
+    return this.rideService.create(createRideInput, driverId);
   }
 
   @Mutation(() => Ride)
@@ -180,17 +177,15 @@ export class RideResolver {
   }
 
   @Query(() => [Ride])
+  @UseGuards(AuthGuard)
   async getRidesByZone(
     @Args('latitude', { type: () => Float }) latitude: number,
     @Args('longitude', { type: () => Float }) longitude: number
   ): Promise<Ride[]> {
-    const closestStop = await this.stopService.findClosestStop(latitude, longitude);
-
-    if (!closestStop) {
-      throw new NotFoundException('No stop found near the given coordinates');
+    const zone = await this.zoneService.findZoneByCoordinates(latitude, longitude);
+    if (!zone) {
+      throw new NotFoundException('No zone found for the given coordinates');
     }
-
-    const zone = await this.zoneService.findById(closestStop.zoneId.toString());
-    return this.rideService.findRidesByZone(zone._id.toString()); // Fetch rides for the zone
+    return this.rideService.findRidesByZone(zone._id.toString());
   }
 }

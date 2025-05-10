@@ -1,13 +1,16 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Zone, ZoneDocument } from '../schemas/zone.schema';
 import { CreateZoneInput, UpdateZoneInput } from '../dto/zone.dto';
+import { StopService } from './stop.service';
 
 @Injectable()
 export class ZoneService {
   constructor(
     @InjectModel(Zone.name) private zoneModel: Model<ZoneDocument>,
+    @Inject(forwardRef(() => StopService))
+    private stopService: StopService,
   ) {}
 
   async findAll(): Promise<Zone[]> {
@@ -28,6 +31,20 @@ export class ZoneService {
   }
 
   async create(createZoneInput: CreateZoneInput): Promise<Zone> {
+    // Check for overlapping zones
+    const overlappingZone = await this.findOverlappingZone(
+      createZoneInput.centerLatitude,
+      createZoneInput.centerLongitude,
+      createZoneInput.radius
+    );
+
+    if (overlappingZone) {
+      throw new BadRequestException(
+        `Zone overlaps with existing zone: ${overlappingZone.name}. ` +
+        `Please adjust the center coordinates or radius.`
+      );
+    }
+
     const createdZone = new this.zoneModel(createZoneInput);
     return createdZone.save();
   }
@@ -35,6 +52,24 @@ export class ZoneService {
   async update(id: string, updateZoneInput: UpdateZoneInput): Promise<Zone> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid zone ID');
+    }
+
+    // If updating location or radius, check for overlaps
+    if (updateZoneInput.centerLatitude || updateZoneInput.centerLongitude || updateZoneInput.radius) {
+      const zone = await this.findById(id);
+      const overlappingZone = await this.findOverlappingZone(
+        updateZoneInput.centerLatitude || zone.centerLatitude,
+        updateZoneInput.centerLongitude || zone.centerLongitude,
+        updateZoneInput.radius || zone.radius,
+        id // Exclude current zone from overlap check
+      );
+
+      if (overlappingZone) {
+        throw new BadRequestException(
+          `Zone overlaps with existing zone: ${overlappingZone.name}. ` +
+          `Please adjust the center coordinates or radius.`
+        );
+      }
     }
     
     const updatedZone = await this.zoneModel.findByIdAndUpdate(
@@ -81,5 +116,71 @@ export class ZoneService {
     
     // Either direction is valid, but not back and forth
     return isMovingAwayFromGIU || isMovingTowardsGIU;
+  }
+
+  // Find the zone that the coordinates are in
+  async findZoneByCoordinates(latitude: number, longitude: number): Promise<Zone | null> {
+    const zones = await this.findAll();
+    
+    for (const zone of zones) {
+      const distance = this.calculateDistance(
+        latitude,
+        longitude,
+        zone.centerLatitude,
+        zone.centerLongitude
+      );
+      
+      if (distance <= zone.radius) {
+        return zone;
+      }
+    }
+    
+    return null;
+  }
+
+  private async findOverlappingZone(
+    latitude: number,
+    longitude: number,
+    radius: number,
+    excludeZoneId?: string
+  ): Promise<Zone | null> {
+    const zones = await this.findAll();
+    
+    for (const zone of zones) {
+      // Skip the zone being updated
+      if (excludeZoneId && zone._id.toString() === excludeZoneId) {
+        continue;
+      }
+
+      const distance = this.calculateDistance(
+        latitude,
+        longitude,
+        zone.centerLatitude,
+        zone.centerLongitude
+      );
+      
+      // If the sum of radii is greater than the distance between centers, zones overlap
+      if (distance < (radius + zone.radius)) {
+        return zone;
+      }
+    }
+    
+    return null;
+  }
+
+  private calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+    const R = 6371; // Earth's radius in kilometers
+    const dLat = this.toRad(lat2 - lat1);
+    const dLon = this.toRad(lon2 - lon1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRad(lat1)) * Math.cos(this.toRad(lat2)) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  private toRad(degrees: number): number {
+    return degrees * (Math.PI / 180);
   }
 } 

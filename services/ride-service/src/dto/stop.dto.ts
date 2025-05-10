@@ -1,5 +1,5 @@
-import { InputType, Field, ID, Float } from '@nestjs/graphql';
-import { IsString, IsNumber, IsBoolean, IsOptional, IsNotEmpty } from 'class-validator';
+import { Field, InputType, Int, Float } from '@nestjs/graphql';
+import { IsString, IsNumber, IsBoolean, IsOptional, IsNotEmpty, Min } from 'class-validator';
 
 @InputType()
 export class CreateStopInput {
@@ -21,10 +21,10 @@ export class CreateStopInput {
   @IsNumber()
   longitude: number;
 
-  @Field(() => ID)
-  @IsString()
-  @IsNotEmpty()
-  zoneId: string;
+  @Field(() => Int)
+  @IsNumber()
+  @Min(1)
+  sequence: number;
 
   @Field(() => Boolean, { nullable: true, defaultValue: true })
   @IsBoolean()
@@ -54,10 +54,11 @@ export class UpdateStopInput {
   @IsOptional()
   longitude?: number;
 
-  @Field(() => ID, { nullable: true })
-  @IsString()
+  @Field(() => Int, { nullable: true })
+  @IsNumber()
+  @Min(1)
   @IsOptional()
-  zoneId?: string;
+  sequence?: number;
 
   @Field(() => Boolean, { nullable: true })
   @IsBoolean()

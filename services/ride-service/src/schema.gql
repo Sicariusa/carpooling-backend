@@ -11,13 +11,33 @@ input BookingDeadlineInput {
 input CreateRideInput {
   availableSeats: Int!
   departureTime: DateTime!
-  endLocation: String!
+  driverLatitude: Float!
+  driverLongitude: Float!
   girlsOnly: Boolean! = false
   pricePerSeat: Float!
   priceScale: Float! = 1
-  startLocation: String!
-  stops: [RideStopInput!]!
+  selectedRouteId: ID!
+  startFromGIU: Boolean!
   totalSeats: Int!
+}
+
+input CreateStopInput {
+  address: String!
+  isActive: Boolean = true
+  latitude: Float!
+  longitude: Float!
+  name: String!
+  sequence: Int!
+}
+
+input CreateZoneInput {
+  centerLatitude: Float!
+  centerLongitude: Float!
+  description: String!
+  distanceFromGIU: Int!
+  isActive: Boolean = true
+  name: String!
+  radius: Float!
 }
 
 """
@@ -35,11 +55,17 @@ type Mutation {
   acceptBookingRequest(bookingId: ID!, rideId: ID!): Ride!
   cancelRide(id: ID!): Ride!
   createRide(createRideInput: CreateRideInput!): Ride!
+  createStop(input: CreateStopInput!): Stop!
+  createZone(input: CreateZoneInput!): Zone!
   modifyDropoffLocation(input: ModifyDestinationInput!): Boolean!
   rejectBookingRequest(bookingId: ID!, rideId: ID!): Ride!
+  removeStop(id: ID!): Boolean!
+  removeZone(id: ID!): Boolean!
   setBookingDeadline(input: BookingDeadlineInput!): Ride!
   setRideGirlsOnly(girlsOnly: Boolean!, id: ID!): Ride!
   updateRide(id: ID!, updateRideInput: UpdateRideInput!): Ride!
+  updateStop(id: ID!, input: UpdateStopInput!): Stop!
+  updateZone(id: ID!, input: UpdateZoneInput!): Zone!
 }
 
 type Query {
@@ -53,6 +79,11 @@ type Query {
   ride(id: ID!): Ride!
   rides: [Ride!]!
   searchRides(searchInput: SearchRideInput!): [Ride!]!
+  stop(id: ID!): Stop!
+  stops: [Stop!]!
+  stopsByZone(zoneId: ID!): [Stop!]!
+  zone(id: ID!): Zone!
+  zones: [Zone!]!
 }
 
 type Ride {
@@ -67,6 +98,7 @@ type Ride {
   girlsOnly: Boolean!
   pricePerSeat: Float!
   priceScale: Float!
+  selectedRouteId: ID!
   startFromGIU: Boolean!
   startLocation: String!
   status: RideStatus!
@@ -102,6 +134,19 @@ input SearchRideInput {
   toZoneId: ID
 }
 
+type Stop {
+  _id: ID!
+  address: String!
+  createdAt: DateTime!
+  isActive: Boolean!
+  latitude: Float!
+  longitude: Float!
+  name: String!
+  sequence: Int!
+  updatedAt: DateTime!
+  zone: Zone!
+}
+
 input UpdateRideInput {
   availableSeats: Int
   departureTime: DateTime
@@ -111,4 +156,36 @@ input UpdateRideInput {
   status: RideStatus
   stops: [RideStopInput!]
   totalSeats: Int
+}
+
+input UpdateStopInput {
+  address: String
+  isActive: Boolean
+  latitude: Float
+  longitude: Float
+  name: String
+  sequence: Int
+}
+
+input UpdateZoneInput {
+  centerLatitude: Float
+  centerLongitude: Float
+  description: String
+  distanceFromGIU: Int
+  isActive: Boolean
+  name: String
+  radius: Float
+}
+
+type Zone {
+  _id: ID!
+  centerLatitude: Float!
+  centerLongitude: Float!
+  createdAt: DateTime!
+  description: String!
+  distanceFromGIU: Int!
+  isActive: Boolean!
+  name: String!
+  radius: Float!
+  updatedAt: DateTime!
 }

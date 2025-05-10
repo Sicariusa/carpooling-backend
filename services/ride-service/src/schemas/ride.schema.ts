@@ -37,6 +37,10 @@ export class Ride {
   @Prop({ required: true })
   driverId: string; // ID from user service
 
+  @Field(() => ID)
+  @Prop({ type: Types.ObjectId, required: true })
+  selectedRouteId: Types.ObjectId;
+
   @Field(() => [RideStop])
   @Prop({ type: [Object], required: true })
   stops: RideStop[];

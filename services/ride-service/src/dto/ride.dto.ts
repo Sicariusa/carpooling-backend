@@ -17,12 +17,21 @@ export class RideStopInput {
 
 @InputType()
 export class CreateRideInput {
-  @Field(() => [RideStopInput])
-  @IsArray()
-  @ArrayMinSize(2)
-  @ValidateNested({ each: true })
-  @Type(() => RideStopInput)
-  stops: RideStopInput[];
+  @Field(() => Float)
+  @IsNumber()
+  driverLatitude: number;
+
+  @Field(() => Float)
+  @IsNumber()
+  driverLongitude: number;
+
+  @Field(() => ID)
+  @IsString()
+  selectedRouteId: string;
+
+  @Field(() => Boolean)
+  @IsBoolean()
+  startFromGIU: boolean;
 
   @Field()
   @IsDate()
@@ -36,7 +45,7 @@ export class CreateRideInput {
 
   @Field(() => Int)
   @IsNumber()
-  @Min(1)
+  @Min(0)
   availableSeats: number;
 
   @Field(() => Float)
@@ -46,22 +55,12 @@ export class CreateRideInput {
 
   @Field(() => Float, { defaultValue: 1 })
   @IsNumber()
-  @IsOptional()
   @Min(1)
-  priceScale: number = 1;
+  priceScale: number;
 
   @Field(() => Boolean, { defaultValue: false })
   @IsBoolean()
-  @IsOptional()
-  girlsOnly: boolean = false;
-
-  @Field()
-  @IsString()
-  startLocation: string;
-
-  @Field()
-  @IsString()
-  endLocation: string;
+  girlsOnly: boolean;
 }
 
 @InputType()

@@ -18,6 +18,18 @@ export class Zone {
   @Prop({ required: true })
   description: string;
 
+  @Field(() => Float)
+  @Prop({ required: true })
+  centerLatitude: number;
+
+  @Field(() => Float)
+  @Prop({ required: true })
+  centerLongitude: number;
+
+  @Field(() => Float)
+  @Prop({ required: true, min: 0 })
+  radius: number; // in kilometers
+
   @Field(() => Int)
   @Prop({ required: true, min: 0 })
   distanceFromGIU: number;
