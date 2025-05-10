@@ -56,5 +56,14 @@ export class UsersResolver {
   async getUserByUuid(@Args('id', { type: () => String }) id: string) {
     return this.usersService.findByUuid(id);
   }
+
+  @Mutation(() => Boolean, { name: 'verifyOtp' })
+  @Public()
+  async verifyOtp(
+    @Args('email') email: string,
+    @Args('otp') otp: string,
+  ): Promise<boolean> {
+    return this.usersService.verifyOtp(email, otp);
+  }
   
 }
