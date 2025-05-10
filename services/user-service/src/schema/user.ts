@@ -32,4 +32,13 @@ export class User {
 
   @Field()
   updatedAt: Date;
+
+  @Field()
+  firstName?: string;
+  
+  @Field()
+  lastName?: string;
+
+  @Field()
+  isApproved: boolean;
 }

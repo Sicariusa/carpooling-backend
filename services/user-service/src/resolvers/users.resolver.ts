@@ -1,12 +1,12 @@
-import { Resolver, Query, Mutation, Args, Int } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, Int, Context } from '@nestjs/graphql';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
-
-
 import { User } from 'src/schema/user';
 import { UsersService } from 'src/services/users.service';
 import { Roles, Public } from '../guards/auth.guard';
 import { Role } from '@prisma/client';
+import { UnauthorizedException } from '@nestjs/common';
+import { UserInfo } from './auth.resolver';
 
 // getdriverrides fe ride service
 // getMyBookings rides from booking service
@@ -51,10 +51,30 @@ export class UsersResolver {
     return this.usersService.remove(universityId);
   }
 
-  @Query(() => User, { name: 'getUserByUuid' })
+  @Query(() => UserInfo, { name: 'getUserByUuid' })
   @Public()
   async getUserByUuid(@Args('id', { type: () => String }) id: string) {
     return this.usersService.findByUuid(id);
   }
   
+  @Query(() => UserInfo, { name: 'getUserByToken' })
+  async getUserByToken(@Context() context: any) {
+    const token = context.req.headers.authorization?.split(' ')[1]; // Extract token from Authorization header
+    if (!token) {
+      throw new UnauthorizedException('Token is required');
+    }
+    return this.usersService.findByToken(token);
+  }
+
+  @Query(() => [User], { name: 'getAllDrivers' })
+  @Roles(Role.ADMIN) // Only admins can access this query
+  async findAllDrivers() {
+    return this.usersService.findAllDrivers();
+  }
+
+  @Query(() => [User], { name: 'getAllPassengers' })
+  @Roles(Role.ADMIN) // Only admins can access this query
+  async findAllPassengers() {
+    return this.usersService.findAllPassengers();
+  }
 }

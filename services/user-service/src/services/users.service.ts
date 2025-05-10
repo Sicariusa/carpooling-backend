@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger, UnauthorizedException } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { CreateUserInput } from 'src/dto/create-user.input';
@@ -6,7 +6,9 @@ import { UpdateUserInput } from 'src/dto/update-user.input.dto';
 import * as bcrypt from 'bcrypt';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import * as nodemailer from 'nodemailer';
+import * as jwt from 'jsonwebtoken';
 import { Console } from 'console';
+import { JwtService } from '@nestjs/jwt';
 
 // Global OTP store with case-insensitive email keys
 const otpStore = new Map<string, { otp: string; expiresAt: Date }>();
@@ -16,7 +18,9 @@ export class UsersService {
   private readonly logger = new Logger(UsersService.name);
   private transporter: nodemailer.Transporter;
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(private readonly prisma: PrismaService,
+              private readonly jwtService: JwtService // Inject JwtService for token handling
+  ) {
     // Initialize Nodemailer transporter
     this.initializeNodemailer();
   }
@@ -273,5 +277,35 @@ export class UsersService {
       this.logger.error(`Error updating user verification status: ${error}`);
       throw new BadRequestException('Failed to update user verification status');
     }
+  }
+
+  async findByToken(token: string) {
+    try {
+      const payload = this.jwtService.verify(token); // ✅ use Nest's jwtService
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+      });
+  
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
+  
+      return user;
+    } catch (error) {
+      this.logger.error(`Failed to find user by token: ${error.message}`);
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+  }
+  
+  async findAllDrivers(): Promise<User[]> {
+  return this.prisma.user.findMany({
+    where: { role: 'DRIVER' },
+  }); 
+  }
+
+  async findAllPassengers(): Promise<User[]> {
+    return this.prisma.user.findMany({
+      where: { role: 'PASSENGER' },
+    });
   }
 }

@@ -30,9 +30,12 @@ type Mutation {
 }
 
 type Query {
+  getAllDrivers: [User!]!
+  getAllPassengers: [User!]!
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
-  getUserByUuid(id: String!): User!
+  getUserByToken: UserInfo!
+  getUserByUuid(id: String!): UserInfo!
   validateToken(token: String!): TokenValidationResponse!
 }
 
@@ -60,7 +63,10 @@ input UpdateUserInput {
 type User {
   createdAt: DateTime!
   email: String!
+  firstName: String!
   id: ID!
+  isApproved: Boolean!
+  lastName: String!
   password: String!
   phoneNumber: Int
   role: String!
@@ -70,7 +76,9 @@ type User {
 
 type UserInfo {
   email: String!
+  firstName: String!
   id: String!
+  lastName: String!
   phoneNumber: Int
   role: String!
   universityId: Int!
