@@ -27,6 +27,7 @@ type Mutation {
   login(password: String!, universityId: Int!): LoginResponse!
   registerUser(input: CreateUserInput!): User!
   updateUser(input: UpdateUserInput!, universityId: Int!): User!
+  verifyOtp(email: String!, otp: String!): Boolean!
 }
 
 type Query {
@@ -60,7 +61,9 @@ input UpdateUserInput {
 type User {
   createdAt: DateTime!
   email: String!
+  firstName: String!
   id: ID!
+  lastName: String!
   password: String!
   phoneNumber: Int
   role: String!
