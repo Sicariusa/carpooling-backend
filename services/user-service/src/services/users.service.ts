@@ -7,6 +7,7 @@ import * as bcrypt from 'bcrypt';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import * as nodemailer from 'nodemailer';
 import { Console } from 'console';
+import { verify } from 'jsonwebtoken';
 
 // Global OTP store with case-insensitive email keys
 const otpStore = new Map<string, { otp: string; expiresAt: Date }>();
@@ -275,4 +276,14 @@ export class UsersService {
       throw new BadRequestException('Failed to update user verification status');
     }
   }
+
+    async getUserByToken(token: string) {
+    try {
+      const decoded = verify(token, process.env.JWT_SECRET) as { id: string };
+      return this.findByUuid(decoded.id);
+    } catch (error) {
+      throw new BadRequestException('Invalid token');
+    }
+  }
+  
 }
