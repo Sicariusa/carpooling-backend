@@ -8,9 +8,6 @@ import { Role } from '@prisma/client';
 import { UnauthorizedException } from '@nestjs/common';
 import { UserInfo } from './auth.resolver';
 
-// getdriverrides fe ride service
-// getMyBookings rides from booking service
-
 @Resolver(() => User)
 export class UsersResolver {
   constructor(private readonly usersService: UsersService) {}
@@ -35,7 +32,7 @@ export class UsersResolver {
     return this.usersService.create(input);
   }
 
-  //Update a user (protected by default)
+  // Update a user (protected by default)
   @Mutation(() => User, { name: 'updateUser' })
   async update(
     @Args('universityId', { type: () => Int }) universityId: number,
@@ -76,5 +73,15 @@ export class UsersResolver {
   @Roles(Role.ADMIN) // Only admins can access this query
   async findAllPassengers() {
     return this.usersService.findAllPassengers();
+  }
+  
+  // Verify OTP (public)
+  @Mutation(() => Boolean, { name: 'verifyOtp' })
+  @Public()
+  async verifyOtp(
+    @Args('email') email: string,
+    @Args('otp') otp: string,
+  ): Promise<boolean> {
+    return this.usersService.verifyOtp(email, otp);
   }
 }

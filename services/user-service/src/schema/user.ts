@@ -21,11 +21,20 @@ export class User {
   @Field()
   password?: string;
 
+  @Field()
+  firstName: string;
+
+  @Field()
+  lastName: string;
+
   @Field(() => String) // Note: Role enum is represented as String in GraphQL
   role: Role;
 
   @Field(() => Int, { nullable: true })
   phoneNumber?: number;
+
+  @Field({ nullable: true }) // Add gender as a nullable field
+  gender?: string;
 
   @Field()
   createdAt: Date;
