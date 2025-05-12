@@ -55,6 +55,24 @@ export class StopService {
     return createdStop.save();
   }
 
+  async search(query: string): Promise<Stop[]> {
+    const searchRegex = new RegExp(query, 'i');
+    
+    // First, find zones that match the search query
+    const matchingZones = await this.zoneService.search(searchRegex);
+    const matchingZoneIds = matchingZones.map(zone => zone._id);
+
+    // Then find stops that match either the stop name/address or are in matching zones
+    return this.stopModel.find({
+      $or: [
+        { name: searchRegex },
+        { address: searchRegex },
+        { zoneId: { $in: matchingZoneIds } }
+      ],
+      isActive: true
+    }).exec();
+  }
+
   async update(id: string, updateStopInput: UpdateStopInput): Promise<Stop> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid stop ID');

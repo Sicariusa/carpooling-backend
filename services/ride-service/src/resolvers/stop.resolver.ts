@@ -1,4 +1,4 @@
-import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent } from '@nestjs/graphql';
+import { Resolver, Query, Mutation, Args, ID, ResolveField, Parent, Float } from '@nestjs/graphql';
 import { UseGuards } from '@nestjs/common';
 import { Stop } from '../schemas/stop.schema';
 import { StopService } from '../services/stop.service';
@@ -25,6 +25,11 @@ export class StopResolver {
   @Query(() => [Stop])
   async stopsByZone(@Args('zoneId', { type: () => ID }) zoneId: string) {
     return this.stopService.findByZone(zoneId);
+  }
+
+  @Query(() => [Stop])
+  async searchStops(@Args('query', { type: () => String }) query: string) {
+    return this.stopService.search(query);
   }
 
   @Mutation(() => Stop)
@@ -55,4 +60,12 @@ export class StopResolver {
   async zone(@Parent() stop: Stop) {
     return this.stopService.getZoneForStop(stop._id.toString());
   }
-} 
+
+  // Find the closest stop to a given coordinate
+  @Query(() => Stop)
+  async closestStop(@Args('latitude', { type: () => Float }) latitude: number,
+    @Args('longitude', { type: () => Float }) longitude: number
+  ) {
+    return this.stopService.findClosestStop(latitude, longitude);
+  }
+}

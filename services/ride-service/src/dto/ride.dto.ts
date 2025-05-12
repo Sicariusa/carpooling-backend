@@ -9,6 +9,10 @@ export class RideStopInput {
   @IsString()
   stopId: string;
 
+  @Field(() => String)
+  @IsString()
+  location: string;
+
   @Field(() => Int)
   @IsNumber()
   @Min(1)
