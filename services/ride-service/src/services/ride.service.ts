@@ -101,23 +101,23 @@ export class RideService implements OnModuleInit {
       minAvailableSeats = 1,
       maxPrice
     } = searchInput;
-
+  
     // Create a base query
     const query: any = {
       status: { $in: [RideStatus.SCHEDULED, RideStatus.ACTIVE] },
       availableSeats: { $gte: minAvailableSeats }
     };
-
+  
     // Add price filter if specified
     if (maxPrice !== undefined) {
       query.pricePerSeat = { $lte: maxPrice };
     }
-
+  
     // Add girlsOnly filter if specified
     if (girlsOnly !== undefined) {
       query.girlsOnly = girlsOnly;
     }
-
+  
     // Add departure date filter if specified
     if (departureDate) {
       const startOfDay = new Date(departureDate);
@@ -131,82 +131,47 @@ export class RideService implements OnModuleInit {
         $lte: endOfDay
       };
     }
-
+  
     // Get all rides that match the basic criteria
     let rides = await this.rideModel.find(query).exec();
-
-    // Filter rides based on zones
-    if (fromZoneId || toZoneId) {
-      rides = await Promise.all(
-        rides.map(async (ride) => {
-          // Get the stop details for this ride
-          const stopIds = ride.stops.map(stop => stop.stopId);
-
-          // Fetch all stops to get their zone information
-          const stops = await Promise.all(
-            stopIds.map(stopId => this.stopService.findById(stopId.toString()))
-          );
-
-          // Get the zones in the order of the ride stops
-          const orderedStops = [...ride.stops]
-            .sort((a, b) => a.sequence - b.sequence)
-            .map(orderedStop => {
-              return stops.find(s => s._id.toString() === orderedStop.stopId.toString());
-            });
-
-          const zoneIds = await Promise.all(
-            orderedStops.map(async stop => {
-              if (!stop) return null;
-              return stop.zoneId.toString();
-            })
-          );
-
-          // Filter out null values
-          const validZoneIds = zoneIds.filter(id => id !== null) as string[];
-
-          // Check if this is a ride to GIU or from GIU
-          const isStartFromGIU = ride.startFromGIU;
-
-          // For rides starting from GIU, fromZoneId should be GIU zone (distance=0) 
-          // and toZoneId should be in the ride stops
-          if (isStartFromGIU) {
-            // Handle "from GIU to Zone" scenario
-            if (fromZoneId) {
-              // If searching "from" a specific zone, it should be GIU
-              const fromZone = await this.zoneService.findById(fromZoneId);
-              if (fromZone.distanceFromGIU !== 0) {
-                return null; // Not starting from GIU
-              }
-            }
-
-            // If searching "to" a specific zone, it should be in the stops
-            if (toZoneId && !validZoneIds.includes(toZoneId)) {
-              return null; // Zone not in stops
-            }
-          } else {
-            // Handle "from Zone to GIU" scenario
-            if (toZoneId) {
-              // If searching "to" a specific zone, it should be GIU
-              const toZone = await this.zoneService.findById(toZoneId);
-              if (toZone.distanceFromGIU !== 0) {
-                return null; // Not ending at GIU
-              }
-            }
-
-            // If searching "from" a specific zone, it should be in the stops
-            if (fromZoneId && !validZoneIds.includes(fromZoneId)) {
-              return null; // Zone not in stops
-            }
-          }
-
-          return ride;
-        })
-      );
-
-      // Filter out null values (rides that didn't match the zone criteria)
-      rides = rides.filter(ride => ride !== null);
-    }
-
+  
+    // Filter rides based on fromZoneId and toZoneId
+    rides = await Promise.all(
+      rides.map(async (ride) => {
+        // Get the stop details for this ride
+        const stopIds = ride.stops.map(stop => stop.stopId);
+        const stops = await Promise.all(
+          stopIds.map(stopId => this.stopService.findById(stopId.toString()))
+        );
+  
+        // Order stops by sequence
+        const orderedStops = [...ride.stops]
+          .sort((a, b) => a.sequence - b.sequence)
+          .map(orderedStop => {
+            return stops.find(s => s._id.toString() === orderedStop.stopId.toString());
+          });
+  
+        // Get the first and last zones
+        const firstZone = orderedStops[0]?.zoneId.toString();
+        const lastZone = orderedStops[orderedStops.length - 1]?.zoneId.toString();
+  
+        // Apply fromZoneId filter
+        if (fromZoneId && firstZone !== fromZoneId) {
+          return null; // Exclude rides that don't start from the desired zone
+        }
+  
+        // Apply toZoneId filter
+        if (toZoneId && lastZone !== toZoneId) {
+          return null; // Exclude rides that don't end at the desired zone
+        }
+  
+        return ride;
+      })
+    );
+  
+    // Filter out null values (rides that didn't match the criteria)
+    rides = rides.filter(ride => ride !== null);
+  
     return rides;
   }
 

@@ -61,7 +61,7 @@ export class BookingService implements OnModuleInit {
   
       // Step 3: Try to call payment service, but continue if it fails
       try {
-        await axios.post(`${process.env.PAYMENT_SERVICE_URL || 'http://localhost:3004'}/graphql`, {
+        await axios.post(`${process.env.PAYMENT_SERVICE_URL || 'http://localhost:3003'}/graphql`, {
           query: `
             mutation {
               createPayment(data: {

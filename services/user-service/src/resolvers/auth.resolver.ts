@@ -30,6 +30,16 @@ export class UserInfo {
 
   @Field(() => Int, { nullable: true })
   phoneNumber?: number;
+
+  @Field()
+  firstName: string;
+
+  @Field()
+  lastName: string;
+
+  @Field({ nullable: true })
+  gender?: string;
+  
 }
 
 @ObjectType()
