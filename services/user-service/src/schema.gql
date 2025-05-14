@@ -36,7 +36,8 @@ type Query {
   getAllPassengers: [User!]!
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
-  getUserByUuid(id: String!): User!
+  getUserByToken: UserInfo!
+  getUserByUuid(id: String!): UserInfo!
   validateToken(token: String!): TokenValidationResponse!
 }
 
@@ -75,6 +76,7 @@ type User {
 type UserInfo {
   email: String!
   firstName: String!
+  gender: String
   id: String!
   lastName: String!
   phoneNumber: Int
