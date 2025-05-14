@@ -1,6 +1,7 @@
 import { Resolver, Query, Mutation, Args, Int, Context } from '@nestjs/graphql';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
+import { verify } from 'jsonwebtoken';
 import { User } from 'src/schema/user';
 import { UsersService } from 'src/services/users.service';
 import { Roles, Public } from '../guards/auth.guard';
@@ -10,7 +11,7 @@ import { UserInfo } from './auth.resolver';
 
 @Resolver(() => User)
 export class UsersResolver {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // Get all users (protected by default)
   @Query(() => [User], { name: 'getAllUsers' })
@@ -69,35 +70,19 @@ export class UsersResolver {
   async getUserByUuid(@Args('id', { type: () => String }) id: string) {
     return this.usersService.findByUuid(id);
   }
-  
-  @Query(() => UserInfo, { name: 'getUserByToken' })
-  async getUserByToken(@Context() context: any) {
-    const token = context.req.headers.authorization?.split(' ')[1]; // Extract token from Authorization header
-    if (!token) {
-      throw new UnauthorizedException('Token is required');
+
+  //get user by token provided in header (protected by default)
+  @Query(() => User, { name: 'getUserByToken' })
+  async getUserByToken(@Context() context) {
+    try {
+      const token = context.req.headers.authorization.split(' ')[1];
+      if (!token) {
+        throw new Error('No token provided');
+      }
+      return this.usersService.getUserByToken(token);
+    } catch (error) {
+      throw new Error('error getting user by token: ' + error.message);
     }
-    return this.usersService.findByToken(token);
   }
 
-  @Query(() => [User], { name: 'getAllDrivers' })
-  @Roles(Role.ADMIN) // Only admins can access this query
-  async findAllDrivers() {
-    return this.usersService.findAllDrivers();
-  }
-
-  @Query(() => [User], { name: 'getAllPassengers' })
-  @Roles(Role.ADMIN) // Only admins can access this query
-  async findAllPassengers() {
-    return this.usersService.findAllPassengers();
-  }
-  
-  // Verify OTP (public)
-  @Mutation(() => Boolean, { name: 'verifyOtp' })
-  @Public()
-  async verifyOtp(
-    @Args('email') email: string,
-    @Args('otp') otp: string,
-  ): Promise<boolean> {
-    return this.usersService.verifyOtp(email, otp);
-  }
 }

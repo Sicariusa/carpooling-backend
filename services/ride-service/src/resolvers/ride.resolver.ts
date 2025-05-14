@@ -1,15 +1,19 @@
-import { Resolver, Query, Mutation, Args, ID, Context } from '@nestjs/graphql';
-import { UseGuards, UnauthorizedException } from '@nestjs/common';
+import { Resolver, Query, Mutation, Args, ID, Context, Float } from '@nestjs/graphql';
+import { UseGuards, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { Ride, RideStatus } from '../schemas/ride.schema';
 import { RideService } from '../services/ride.service';
 import { CreateRideInput, SearchRideInput, UpdateRideInput, BookingDeadlineInput, ModifyDestinationInput } from '../dto/ride.dto';
 import { AuthGuard } from '../guards/auth.guard';
 import { RoleGuard } from '../guards/role.guard';
 import { Roles } from '../decorators/roles.decorator';
+import { StopService } from 'src/services/stop.service';
+import { ZoneService } from 'src/services/zone.service';
 
 @Resolver(() => Ride)
 export class RideResolver {
-  constructor(private rideService: RideService) { }
+  constructor(private rideService: RideService,
+    private stopService: StopService,
+    private zoneService: ZoneService) { }
 
   @Query(() => [Ride])
   async rides() {
@@ -173,5 +177,20 @@ export class RideResolver {
       user.id,
       input.newDropoffLocation
     );
+  }
+
+  @Query(() => [Ride])
+  async getRidesByZone(
+    @Args('latitude', { type: () => Float }) latitude: number,
+    @Args('longitude', { type: () => Float }) longitude: number
+  ): Promise<Ride[]> {
+    const closestStop = await this.stopService.findClosestStop(latitude, longitude);
+
+    if (!closestStop) {
+      throw new NotFoundException('No stop found near the given coordinates');
+    }
+
+    const zone = await this.zoneService.findById(closestStop.zoneId.toString());
+    return this.rideService.findRidesByZone(zone._id.toString()); // Fetch rides for the zone
   }
 }

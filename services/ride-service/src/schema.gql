@@ -29,6 +29,15 @@ input CreateStopInput {
   zoneId: ID!
 }
 
+input CreateStopInput {
+  address: String!
+  isActive: Boolean = true
+  latitude: Float!
+  longitude: Float!
+  name: String!
+  zoneId: ID!
+}
+
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -56,6 +65,8 @@ type Mutation {
 
 type Query {
   calculateFare(dropoffStopId: ID!, pickupStopId: ID!, rideId: ID!): Float!
+  closestStop(latitude: Float!, longitude: Float!): Stop!
+  getRidesByZone(latitude: Float!, longitude: Float!): [Ride!]!
   myActiveRides: [Ride!]!
   myBookings: [Ride!]!
   myRideHistory: [Ride!]!
@@ -64,6 +75,7 @@ type Query {
   ride(id: ID!): Ride!
   rides: [Ride!]!
   searchRides(searchInput: SearchRideInput!): [Ride!]!
+  searchStops(query: String!): [Stop!]!
   stop(id: ID!): Stop!
   stops: [Stop!]!
   stopsByZone(zoneId: ID!): [Stop!]!
@@ -103,6 +115,7 @@ type RideStop {
 }
 
 input RideStopInput {
+  location: String!
   sequence: Int!
   stopId: ID!
 }

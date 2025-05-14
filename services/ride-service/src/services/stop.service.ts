@@ -55,6 +55,24 @@ export class StopService {
     return createdStop.save();
   }
 
+  async search(query: string): Promise<Stop[]> {
+    const searchRegex = new RegExp(query, 'i');
+    
+    // First, find zones that match the search query
+    const matchingZones = await this.zoneService.search(searchRegex);
+    const matchingZoneIds = matchingZones.map(zone => zone._id);
+
+    // Then find stops that match either the stop name/address or are in matching zones
+    return this.stopModel.find({
+      $or: [
+        { name: searchRegex },
+        { address: searchRegex },
+        { zoneId: { $in: matchingZoneIds } }
+      ],
+      isActive: true
+    }).exec();
+  }
+
   async update(id: string, updateStopInput: UpdateStopInput): Promise<Stop> {
     if (!Types.ObjectId.isValid(id)) {
       throw new BadRequestException('Invalid stop ID');
@@ -121,5 +139,47 @@ export class StopService {
   async getZoneForStop(stopId: string): Promise<any> {
     const stop = await this.findById(stopId);
     return this.zoneService.findById(stop.zoneId.toString());
+  }
+
+  calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number {
+    const toRadians = (degrees: number) => (degrees * Math.PI) / 180;
+
+    const earthRadiusKm = 6371; // Radius of the Earth in kilometers
+    const dLat = toRadians(lat2 - lat1);
+    const dLon = toRadians(lon2 - lon1);
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2));
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return earthRadiusKm * c;
+  }
+
+  // Find the closest stop to a given coordinate
+  async findClosestStop(latitude: number, longitude: number): Promise<Stop> {
+    const stops = await this.findAll(); // Fetch all stops
+    let closestStop = null;
+    let minDistance = Infinity;
+
+    for (const stop of stops) {
+      const distance = this.calculateDistance(
+        latitude,
+        longitude,
+        stop.latitude,
+        stop.longitude
+      );
+      if (distance < minDistance) {
+        minDistance = distance;
+        closestStop = stop;
+      }
+    }
+    console.log(`Closest stop: ${closestStop._id}, Distance: ${minDistance} km`);
+    return closestStop;
   }
 } 

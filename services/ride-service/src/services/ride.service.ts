@@ -1346,4 +1346,8 @@ export class RideService implements OnModuleInit {
     this.socketServer.emit('driverLocationUpdate', { driverId, location });
     this.logger.log(`Driver ${driverId} location updated: ${JSON.stringify(location)}`);
   }
+
+  async findRidesByZone(zoneId: string): Promise<Ride[]> {
+    return this.rideModel.find({ 'stops.zoneId': zoneId }).exec();
+  }
 }
