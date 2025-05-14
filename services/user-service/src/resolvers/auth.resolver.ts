@@ -36,6 +36,9 @@ export class UserInfo {
 
   @Field()
   lastName: string;
+
+  @Field({ nullable: true })
+  gender?: string;
   
 }
 
