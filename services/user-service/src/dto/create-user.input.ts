@@ -44,4 +44,10 @@ export class CreateUserInput {
   @IsOptional()
   @IsInt()
   phoneNumber?: number;
+
+  @Field({ nullable: true }) // Add gender as an optional field
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
 }

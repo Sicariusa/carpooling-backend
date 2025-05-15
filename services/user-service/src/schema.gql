@@ -5,6 +5,7 @@
 input CreateUserInput {
   email: String!
   firstName: String!
+  gender: String
   lastName: String!
   password: String!
   phoneNumber: Int
@@ -27,12 +28,16 @@ type Mutation {
   login(password: String!, universityId: Int!): LoginResponse!
   registerUser(input: CreateUserInput!): User!
   updateUser(input: UpdateUserInput!, universityId: Int!): User!
+  verifyOtp(email: String!, otp: String!): Boolean!
 }
 
 type Query {
+  getAllDrivers: [User!]!
+  getAllPassengers: [User!]!
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
-  getUserByUuid(id: String!): User!
+  getUserByToken: UserInfo!
+  getUserByUuid(id: String!): UserInfo!
   validateToken(token: String!): TokenValidationResponse!
 }
 
@@ -70,7 +75,10 @@ type User {
 
 type UserInfo {
   email: String!
+  firstName: String!
+  gender: String
   id: String!
+  lastName: String!
   phoneNumber: Int
   role: String!
   universityId: Int!
