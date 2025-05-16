@@ -78,6 +78,9 @@ export class RideService implements OnModuleInit {
 
   //find the driver's active rides
   async findActiveRides(driverId: string): Promise<Ride[]> {
+
+    console.log(await this.rideModel.find({driverId, status: { $in: [RideStatus.ACTIVE] }}).exec());
+
     return this.rideModel.find({
       driverId,
       status: { $in: [RideStatus.ACTIVE] }
@@ -86,6 +89,7 @@ export class RideService implements OnModuleInit {
 
   //find the driver's scheduled rides
   async findScheduledRides(driverId: string): Promise<Ride[]> {
+    console.log(await this.rideModel.find({driverId, status: { $in: [RideStatus.SCHEDULED] }}).exec()); 
     return this.rideModel.find({
       driverId,
       status: { $in: [RideStatus.SCHEDULED] }
@@ -261,6 +265,9 @@ export class RideService implements OnModuleInit {
     // Create the ride
     const formattedStops = createRideInput.stops.map(stop => ({
       stopId: new Types.ObjectId(stop.stopId),
+      latitude: stop.latitude,
+      longitude: stop.longitude,
+      location: stop.location,
       sequence: stop.sequence
     }));
 

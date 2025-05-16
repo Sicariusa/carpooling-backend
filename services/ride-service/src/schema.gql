@@ -101,13 +101,17 @@ enum RideStatus {
 }
 
 type RideStop {
+  latitude: Float!
   location: String!
+  longitude: Float!
   sequence: Int!
   stopId: ID!
 }
 
 input RideStopInput {
+  latitude: Float!
   location: String!
+  longitude: Float!
   sequence: Int!
   stopId: ID!
 }

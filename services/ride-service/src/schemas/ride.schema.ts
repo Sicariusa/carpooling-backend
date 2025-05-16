@@ -27,6 +27,14 @@ export class RideStop {
   @Prop({ required: true })
   location: string;
 
+  @Field(() => Float)
+  @Prop({ required: true })
+  latitude: number;
+
+  @Field(() => Float)
+  @Prop({ required: true })
+  longitude: number;
+
   @Field(() => Int)
   @Prop({ required: true, min: 1 })
   sequence: number;
