@@ -29,15 +29,6 @@ input CreateStopInput {
   zoneId: ID!
 }
 
-input CreateStopInput {
-  address: String!
-  isActive: Boolean = true
-  latitude: Float!
-  longitude: Float!
-  name: String!
-  zoneId: ID!
-}
-
 """
 A date-time string at UTC, such as 2019-12-03T09:54:33Z, compliant with the date-time format.
 """
@@ -110,6 +101,7 @@ enum RideStatus {
 }
 
 type RideStop {
+  location: String!
   sequence: Int!
   stopId: ID!
 }

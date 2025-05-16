@@ -72,17 +72,13 @@ export class UsersResolver {
   }
 
   //get user by token provided in header (protected by default)
-  @Query(() => User, { name: 'getUserByToken' })
-  async getUserByToken(@Context() context) {
-    try {
-      const token = context.req.headers.authorization.split(' ')[1];
-      if (!token) {
-        throw new Error('No token provided');
-      }
-      return this.usersService.getUserByToken(token);
-    } catch (error) {
-      throw new Error('error getting user by token: ' + error.message);
+  @Query(() => UserInfo, { name: 'getUserByToken' })
+  async getUserByToken(@Context() context: any) {
+    const token = context.req.headers.authorization?.split(' ')[1]; // Extract token from Authorization header
+    if (!token) {
+      throw new UnauthorizedException('Token is required');
     }
+    return this.usersService.findByToken(token);
   }
 
 }

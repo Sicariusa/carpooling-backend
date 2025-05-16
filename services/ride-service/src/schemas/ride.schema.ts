@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
 import { Field, ID, ObjectType, Int, Float, registerEnumType } from '@nestjs/graphql';
+import { isNullableType } from 'graphql';
 
 export type RideDocument = Ride & Document;
 
@@ -21,6 +22,10 @@ export class RideStop {
   @Field(() => ID)
   @Prop({ type: Types.ObjectId, required: true })
   stopId: Types.ObjectId;
+
+  @Field(() => String)
+  @Prop({ required: true })
+  location: string;
 
   @Field(() => Int)
   @Prop({ required: true, min: 1 })

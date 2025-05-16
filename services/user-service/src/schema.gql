@@ -33,12 +33,10 @@ type Mutation {
 }
 
 type Query {
-  getAllDrivers: [User!]!
-  getAllPassengers: [User!]!
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
-  getUserByToken: User!
-  getUserByUuid(id: String!): User!
+  getUserByToken: UserInfo!
+  getUserByUuid(id: String!): UserInfo!
   validateToken(token: String!): TokenValidationResponse!
 }
 
