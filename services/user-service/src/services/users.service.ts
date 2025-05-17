@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException, Logger, UnauthorizedException } from '@nestjs/common';
-import { User } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { PrismaService } from './prisma.service';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
@@ -149,6 +149,7 @@ export class UsersService {
       data: restInput
     });
   }
+
 
   //  Delete a user
   async remove(universityId: number) {
@@ -319,4 +320,12 @@ export class UsersService {
       where: { role: 'PASSENGER' },
     });
   }
+
+  async changeRole(universityId: number, newRole: Role) {
+  return this.prisma.user.update({
+    where: { universityId },
+    data: { role: newRole }
+  });
+}
+
 }

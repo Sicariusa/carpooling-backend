@@ -35,6 +35,15 @@ export class PaymentResolver {
     return this.paymentService.getPaymentById(id, user.id);
   }
 
+  @Query(() => Payment)
+async getPaymentByBooking(
+  @Args('bookingId', { type: () => ID }) bookingId: string,
+  @CurrentUser() user: any,
+) {
+  return this.paymentService.getPaymentByBooking(bookingId, user.id);
+}
+
+
   @Mutation(() => Payment)
   async refundPayment(
     @Args('id', { type: () => ID }) id: string,
@@ -42,4 +51,12 @@ export class PaymentResolver {
   ) {
     return this.paymentService.refundPayment(id, user);
   }
+
+  @Query(() => [Payment])
+async getAllPayments() {
+  return this.paymentService.getAllPayments();
 }
+
+}
+
+

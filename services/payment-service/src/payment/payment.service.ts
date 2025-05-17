@@ -29,38 +29,60 @@ export class PaymentService {
   }
 
   async createPaymentIntent(data: CreatePaymentDto, userId: string) {
-    const paymentIntent = await this.stripe.paymentIntents.create({
-      amount: data.amount * 100,
+  // ✅ 1. Check for existing pending payment
+  const existing = await this.prisma.payment.findFirst({
+    where: {
+      bookingId: data.bookingId,
+      userId,
+      status: 'pending',
+    },
+  });
+
+if (existing) {
+  const intent = await this.stripe.paymentIntents.retrieve(existing.paymentIntentId);
+  return {
+    clientSecret: intent.client_secret,
+    payment: {
+      ...existing,
+      clientSecret: intent.client_secret,
+    },
+  };
+}
+
+
+  // ✅ 2. Otherwise create a new one
+  const paymentIntent = await this.stripe.paymentIntents.create({
+    amount: data.amount * 100,
+    currency: 'egp',
+    metadata: {
+      userId,
+      bookingId: data.bookingId,
+    },
+  });
+
+  const payment = await this.prisma.payment.create({
+    data: {
+      userId,
+      bookingId: data.bookingId,
+      amount: data.amount,
       currency: 'egp',
-      metadata: { 
-        userId,
-        bookingId: data.bookingId 
-      },
-    });
-  
-    const payment = await this.prisma.payment.create({
-      data: {
-        userId,
-        bookingId: data.bookingId,
-        amount: data.amount,
-        currency: 'egp',
-        paymentIntentId: paymentIntent.id,
-        status: 'pending',
-        metadata: paymentIntent.metadata 
-          ? JSON.parse(JSON.stringify(paymentIntent.metadata))
-          : null
-      },
-    });
-  
-    return {
+      paymentIntentId: paymentIntent.id,
+      status: 'pending',
+      metadata: paymentIntent.metadata
+        ? JSON.parse(JSON.stringify(paymentIntent.metadata))
+        : null,
+    },
+  });
+
+  return {
+    clientSecret: paymentIntent.client_secret,
+    payment: {
+      ...payment,
       clientSecret: paymentIntent.client_secret,
-      payment: {
-        ...payment,
-        clientSecret: paymentIntent.client_secret
-      }
-    };
-    
-  }
+    },
+  };
+}
+
 
   async handlePaymentIntentSucceeded(paymentIntentId: string) {
     console.log('Processing success for payment intent:', paymentIntentId);
@@ -189,29 +211,32 @@ export class PaymentService {
     return payment;
   }
   
-  async refundPayment(id: string, user: any) {
-    const payment = await this.prisma.payment.findUnique({ where: { id } });
   
-    if (!payment) throw new Error('Payment not found');
-    if (user.role !== 'ADMIN') throw new Error('Unauthorized refund');
-  
-    if (payment.paymentIntentId) {
-      try {
-        // Create actual Stripe refund
-        await this.stripe.refunds.create({
-          payment_intent: payment.paymentIntentId,
-        });
-      } catch (error) {
-        console.error('Stripe refund error:', error);
-        throw new Error('Refund processing failed');
-      }
+async refundPayment(id: string, user: any) {
+  const payment = await this.prisma.payment.findUnique({ where: { id } });
+
+  if (!payment) throw new Error('Payment not found');
+  if (user.role !== 'ADMIN') throw new Error('Unauthorized refund');
+
+  if (payment.paymentIntentId) {
+    try {
+      await this.stripe.refunds.create({ payment_intent: payment.paymentIntentId });
+    } catch (error) {
+      console.error('Stripe refund error:', error);
+      throw new Error('Refund processing failed');
     }
-  
-    return this.prisma.payment.update({
-      where: { id },
-      data: { status: 'refunded' },
-    });
   }
+
+  const updated = await this.prisma.payment.update({
+    where: { id },
+    data: { status: 'refunded' },
+  });
+
+  await this.sendRefundConfirmationEmail(payment.userId, payment.bookingId, payment.amount);
+
+  return updated;
+}
+
 
   async sendConfirmationEmail(to: string, bookingId: string, amount: number) {
     const transporter = nodemailer.createTransport({
@@ -287,6 +312,49 @@ export class PaymentService {
       console.error('Error handling charge.updated:', err);
     }
   }
+async getPaymentByBooking(bookingId: string, userId: string) {
+  const payment = await this.prisma.payment.findFirst({
+    where: {
+      bookingId,
+      userId,
+    },
+  });
+
+  if (!payment) throw new Error('Not authorized or payment not found');
+  return payment;
+}
+
+async getAllPayments() {
+  return this.prisma.payment.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+private async sendRefundConfirmationEmail(userId: string, bookingId: string, amount: number) {
+  const userEmail = await this.getUserEmailFromGraphQL(userId);
+  if (!userEmail) {
+    console.warn('No email found for refund confirmation');
+    return;
+  }
+
+  const mailOptions = {
+    from: this.config.get<string>('EMAIL_USER'),
+    to: userEmail,
+    subject: '💸 Refund Issued',
+    html: `
+      <h2>Refund Processed</h2>
+      <p>You’ve been refunded <strong>${amount} ${'EGP'}</strong> for booking <strong>${bookingId}</strong>.</p>
+      <p>We hope to see you again on GIU Carpooling 🚗</p>
+    `,
+  };
+
+  try {
+    await this.transporter.sendMail(mailOptions);
+    console.log('📧 Refund email sent to:', userEmail);
+  } catch (error) {
+    console.error('❌ Failed to send refund email:', error);
+  }
+}
 
   
 }

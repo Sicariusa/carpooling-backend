@@ -24,6 +24,7 @@ type LoginResponse {
 }
 
 type Mutation {
+  changeUserRole(role: Role!, universityId: Int!): User!
   deleteUser(universityId: Int!): Boolean!
   login(password: String!, universityId: Int!): LoginResponse!
   registerUser(input: CreateUserInput!): User!
