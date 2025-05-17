@@ -56,12 +56,17 @@ type Mutation {
 
 type Query {
   calculateFare(dropoffStopId: ID!, pickupStopId: ID!, rideId: ID!): Float!
+  closestStop(latitude: Float!, longitude: Float!): Stop!
+  getRidesByZone(latitude: Float!, longitude: Float!): [Ride!]!
+  myActiveRides: [Ride!]!
   myBookings: [Ride!]!
   myRideHistory: [Ride!]!
   myRides: [Ride!]!
+  myScheduledRides: [Ride!]!
   ride(id: ID!): Ride!
   rides: [Ride!]!
   searchRides(searchInput: SearchRideInput!): [Ride!]!
+  searchStops(query: String!): [Stop!]!
   stop(id: ID!): Stop!
   stops: [Stop!]!
   stopsByZone(zoneId: ID!): [Stop!]!
@@ -96,11 +101,17 @@ enum RideStatus {
 }
 
 type RideStop {
+  latitude: Float!
+  location: String!
+  longitude: Float!
   sequence: Int!
   stopId: ID!
 }
 
 input RideStopInput {
+  latitude: Float!
+  location: String!
+  longitude: Float!
   sequence: Int!
   stopId: ID!
 }

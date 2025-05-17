@@ -27,6 +27,16 @@ export class ZoneService {
     return zone;
   }
 
+  async search(query: RegExp): Promise<Zone[]> {
+    return this.zoneModel.find({
+      $or: [
+        { name: query },
+        { description: query }
+      ],
+      isActive: true
+    }).exec();
+  }
+
   async create(createZoneInput: CreateZoneInput): Promise<Zone> {
     const createdZone = new this.zoneModel(createZoneInput);
     return createdZone.save();

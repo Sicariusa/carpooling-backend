@@ -24,16 +24,16 @@ type LoginResponse {
 }
 
 type Mutation {
+  changeUserRole(role: Role!, universityId: Int!): User!
   deleteUser(universityId: Int!): Boolean!
   login(password: String!, universityId: Int!): LoginResponse!
   registerUser(input: CreateUserInput!): User!
+  sendOtp(email: String!): Boolean!
   updateUser(input: UpdateUserInput!, universityId: Int!): User!
   verifyOtp(email: String!, otp: String!): Boolean!
 }
 
 type Query {
-  getAllDrivers: [User!]!
-  getAllPassengers: [User!]!
   getAllUsers: [User!]!
   getUserById(universityId: Int!): User!
   getUserByToken: UserInfo!

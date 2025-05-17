@@ -9,6 +9,18 @@ export class RideStopInput {
   @IsString()
   stopId: string;
 
+  @Field(() => Float)
+  @IsNumber()
+  latitude: number;
+
+  @Field(() => Float)
+  @IsNumber()
+  longitude: number;
+
+  @Field(() => String)
+  @IsString()
+  location: string;
+
   @Field(() => Int)
   @IsNumber()
   @Min(1)
