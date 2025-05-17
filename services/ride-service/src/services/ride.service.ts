@@ -388,6 +388,9 @@ export class RideService implements OnModuleInit {
       // Format stops for MongoDB
       const formattedStops = updateRideInput.stops.map(stop => ({
         stopId: new Types.ObjectId(stop.stopId),
+        latitude: stop.latitude,
+        longitude: stop.longitude,
+        location: stop.location,
         sequence: stop.sequence
       }));
 
