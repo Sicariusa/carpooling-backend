@@ -2,7 +2,6 @@ import { Resolver, Query, Mutation, Args, Int, Context } from '@nestjs/graphql';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
 import { verify } from 'jsonwebtoken';
-import { verify } from 'jsonwebtoken';
 import { User } from 'src/schema/user';
 import { UsersService } from 'src/services/users.service';
 import { Roles, Public } from '../guards/auth.guard';
