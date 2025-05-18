@@ -262,5 +262,13 @@ export class BookingService implements OnModuleInit {
       data: { status: BookingStatus.CONFIRMED },
     });
   }
-  
+
+  async getRideBookings(rideId: string) {
+    //FIND BOOKINGS BY RIDE ID
+    const bookings = await this.prisma.booking.findMany({
+      where: { rideId: rideId },
+    });
+    console.log(bookings);
+    return bookings;
+  }
 }

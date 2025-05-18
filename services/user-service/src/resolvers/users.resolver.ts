@@ -1,6 +1,7 @@
 import { Resolver, Query, Mutation, Args, Int, Context } from '@nestjs/graphql';
 import { CreateUserInput } from 'src/dto/create-user.input';
 import { UpdateUserInput } from 'src/dto/update-user.input.dto';
+import { verify } from 'jsonwebtoken';
 import { User } from 'src/schema/user';
 import { UsersService } from 'src/services/users.service';
 import { Roles, Public } from '../guards/auth.guard';
@@ -10,13 +11,29 @@ import { UserInfo } from './auth.resolver';
 
 @Resolver(() => User)
 export class UsersResolver {
-  constructor(private readonly usersService: UsersService) {}
+  constructor(private readonly usersService: UsersService) { }
 
   // Get all users (protected by default)
   @Query(() => [User], { name: 'getAllUsers' })
   @Roles(Role.ADMIN)
   async findAll() {
     return this.usersService.findAll();
+  }
+
+  @Mutation(() => Boolean, { name: 'verifyOtp' })
+  @Public()
+  async verifyOtp(
+    @Args('email') email: string,
+    @Args('otp') otp: string,
+  ): Promise<boolean> {
+    return this.usersService.verifyOtp(email, otp);
+  }
+
+  // Send OTP to email (public)
+  @Mutation(() => Boolean, { name: 'sendOtp' })
+  @Public()
+  async sendOtp(@Args('email') email: string): Promise<boolean> {
+    return this.usersService.sendOtp(email);
   }
 
   // Get user by ID (protected by default)
@@ -53,7 +70,8 @@ export class UsersResolver {
   async getUserByUuid(@Args('id', { type: () => String }) id: string) {
     return this.usersService.findByUuid(id);
   }
-  
+
+  //get user by token provided in header (protected by default)
   @Query(() => UserInfo, { name: 'getUserByToken' })
   async getUserByToken(@Context() context: any) {
     const token = context.req.headers.authorization?.split(' ')[1]; // Extract token from Authorization header
@@ -62,26 +80,14 @@ export class UsersResolver {
     }
     return this.usersService.findByToken(token);
   }
+  @Mutation(() => User, { name: 'changeUserRole' })
+@Roles(Role.ADMIN)
+async changeUserRole(
+  @Args('universityId', { type: () => Int }) universityId: number,
+  @Args('role', { type: () => Role }) role: Role
+) {
+  return this.usersService.changeRole(universityId, role);
+}
 
-  @Query(() => [User], { name: 'getAllDrivers' })
-  @Roles(Role.ADMIN) // Only admins can access this query
-  async findAllDrivers() {
-    return this.usersService.findAllDrivers();
-  }
 
-  @Query(() => [User], { name: 'getAllPassengers' })
-  @Roles(Role.ADMIN) // Only admins can access this query
-  async findAllPassengers() {
-    return this.usersService.findAllPassengers();
-  }
-  
-  // Verify OTP (public)
-  @Mutation(() => Boolean, { name: 'verifyOtp' })
-  @Public()
-  async verifyOtp(
-    @Args('email') email: string,
-    @Args('otp') otp: string,
-  ): Promise<boolean> {
-    return this.usersService.verifyOtp(email, otp);
-  }
 }

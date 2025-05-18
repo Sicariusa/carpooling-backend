@@ -21,27 +21,33 @@ export class AuthService {
   }
 
   async login(universityId: number, password: string) {
-    const user = await this.validateUser(universityId, password);
-    
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-    
-    const payload = { 
-      sub: user.id, 
-      id: user.id,
-      universityId: user.universityId,
-      email: user.email,
-      role: user.role,
-      phoneNumber: user.phoneNumber || null,
-      isApproved: user.isApproved
-    };
-    
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user,
-    };
+  const user = await this.validateUser(universityId, password);
+
+  if (!user) {
+    throw new UnauthorizedException('Invalid credentials');
   }
+
+  // 🔒 Block unverified users
+  if (!user.isApproved) {
+    throw new UnauthorizedException('Please verify your email before logging in');
+  }
+
+  const payload = { 
+    sub: user.id, 
+    id: user.id,
+    universityId: user.universityId,
+    email: user.email,
+    role: user.role,
+    phoneNumber: user.phoneNumber || null,
+    isApproved: user.isApproved
+  };
+
+  return {
+    accessToken: this.jwtService.sign(payload),
+    user,
+  };
+}
+
 
   verifyToken(token: string) {
     try {

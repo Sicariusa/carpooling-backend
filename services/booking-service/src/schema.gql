@@ -33,6 +33,7 @@ type Query {
   AllBookings: [Booking!]!
   MyBookings: [Booking!]!
   getBooking(id: ID!): Booking!
+  getRideBookings(rideId: ID!): [Booking!]!
 }
 
 type Mutation {

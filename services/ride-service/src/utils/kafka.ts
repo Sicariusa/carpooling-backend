@@ -114,6 +114,7 @@ function handleBookingEvents(payload, rideService) {
   switch (payload.type) {
     case 'BOOKING_CREATED':
       rideService.verifyRideBooking(payload.bookingId, payload.rideId, payload.userId);
+      
       break;
     case 'BOOKING_CANCELLED':
       rideService.handleBookingCancellation(payload.bookingId, payload.rideId, payload.userId);

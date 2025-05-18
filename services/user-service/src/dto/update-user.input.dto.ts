@@ -1,5 +1,5 @@
 import { InputType, Field, Int } from '@nestjs/graphql';
-import { IsEmail, IsOptional, IsInt, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsInt, MinLength, IsString } from 'class-validator';
 import { Role } from '@prisma/client';
 
 @InputType()
@@ -27,4 +27,14 @@ export class UpdateUserInput {
   @IsInt()
   @IsOptional()
   phoneNumber?: number;
+
+    @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  firstName?: string;
+
+  @Field({ nullable: true })
+  @IsString()
+  @IsOptional()
+  lastName?: string;
 }

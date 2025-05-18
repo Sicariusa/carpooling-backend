@@ -22,6 +22,8 @@ scalar DateTime
 type Query {
   getMyPayments: [Payment!]!
   getPaymentById(id: ID!): Payment!
+  getPaymentByBooking(bookingId: ID!): Payment!
+  getAllPayments: [Payment!]!
 }
 
 type Mutation {

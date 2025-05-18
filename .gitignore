@@ -37,7 +37,7 @@ lerna-debug.log*
 !.vscode/extensions.json
 
 # dotenv environment variable files
-# .env
+.env
 # .env.development.local
 # .env.test.local
 # .env.production.local
@@ -57,3 +57,5 @@ pids
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 node_modules
 Software Project II - Project Description.pdf
+services/ride-service/.env
+services/ride-service/.env
